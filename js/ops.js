@@ -5,14 +5,17 @@ CABLES.OPS=CABLES.OPS||{};
 
 var Ops=Ops || {};
 Ops.Gl=Ops.Gl || {};
+Ops.Ui=Ops.Ui || {};
 Ops.Anim=Ops.Anim || {};
 Ops.Html=Ops.Html || {};
 Ops.Math=Ops.Math || {};
 Ops.Vars=Ops.Vars || {};
 Ops.Patch=Ops.Patch || {};
+Ops.Value=Ops.Value || {};
 Ops.String=Ops.String || {};
 Ops.Boolean=Ops.Boolean || {};
 Ops.Devices=Ops.Devices || {};
+Ops.Sidebar=Ops.Sidebar || {};
 Ops.Trigger=Ops.Trigger || {};
 Ops.WebAudio=Ops.WebAudio || {};
 Ops.Gl.Matrix=Ops.Gl.Matrix || {};
@@ -3103,44 +3106,6 @@ CABLES.OPS["38ac43a1-1757-48f4-9450-29f07ac0d376"]={f:Ops.Gl.TextureEffects.Chro
 
 // **************************************************************
 // 
-// Ops.Math.Max
-// 
-// **************************************************************
-
-Ops.Math.Max = function()
-{
-CABLES.Op.apply(this,arguments);
-const op=this;
-const attachments={};
-const
-    result=op.outValue("result"),
-    value=op.inValueFloat("value"),
-    max=op.inValueFloat("Maximum");
-
-max.onChange=exec;
-value.onChange=exec;
-
-value.set(1);
-max.set(1);
-
-function exec()
-{
-    var v=Math.max(value.get(),max.get());
-    if(v==v) result.set( v );
-}
-
-
-
-};
-
-Ops.Math.Max.prototype = new CABLES.Op();
-CABLES.OPS["07f0be49-c226-4029-8039-3b620145dc2a"]={f:Ops.Math.Max,objName:"Ops.Math.Max"};
-
-
-
-
-// **************************************************************
-// 
 // Ops.Math.Cosine
 // 
 // **************************************************************
@@ -4426,6 +4391,2521 @@ bool.onChange = function ()
 
 Ops.Boolean.Not.prototype = new CABLES.Op();
 CABLES.OPS["6d123c9f-7485-4fd9-a5c2-76e59dcbeb34"]={f:Ops.Boolean.Not,objName:"Ops.Boolean.Not"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Math.MapRange
+// 
+// **************************************************************
+
+Ops.Math.MapRange = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+
+const result=op.outValue("result");
+var v=op.inValueFloat("value");
+var old_min=op.inValueFloat("old min");
+var old_max=op.inValueFloat("old max");
+var new_min=op.inValueFloat("new min");
+var new_max=op.inValueFloat("new max");
+var easing=op.inValueSelect("Easing",["Linear","Smoothstep","Smootherstep"],"Linear");
+
+op.setPortGroup("Input Range",[old_min,old_max]);
+op.setPortGroup("Output Range",[new_min,new_max]);
+
+var ease=0;
+var r=0;
+
+easing.onChange=function()
+{
+    if(easing.get()=="Smoothstep") ease=1;
+        else if(easing.get()=="Smootherstep") ease=2;
+            else ease=0;
+};
+
+
+function exec()
+{
+    if(v.get()>=Math.max( old_max.get(),old_min.get() ))
+    {
+        result.set(new_max.get());
+        return;
+    }
+    else
+    if(v.get()<=Math.min( old_max.get(),old_min.get() ))
+    {
+        result.set(new_min.get());
+        return;
+    }
+
+    var nMin=new_min.get();
+    var nMax=new_max.get();
+    var oMin=old_min.get();
+    var oMax=old_max.get();
+    var x=v.get();
+
+    var reverseInput = false;
+    var oldMin = Math.min( oMin, oMax );
+    var oldMax = Math.max( oMin, oMax );
+    if(oldMin!= oMin) reverseInput = true;
+
+    var reverseOutput = false;
+    var newMin = Math.min( nMin, nMax );
+    var newMax = Math.max( nMin, nMax );
+    if(newMin != nMin) reverseOutput = true;
+
+    var portion=0;
+
+    if(reverseInput) portion = (oldMax-x)*(newMax-newMin)/(oldMax-oldMin);
+        else portion = (x-oldMin)*(newMax-newMin)/(oldMax-oldMin);
+
+    if(reverseOutput) r=newMax - portion;
+        else r=portion + newMin;
+
+    if(ease===0)
+    {
+        result.set(r);
+    }
+    else
+    if(ease==1)
+    {
+        x = Math.max(0, Math.min(1, (r-nMin)/(nMax-nMin)));
+        result.set( nMin+x*x*(3 - 2*x)* (nMax-nMin) ); // smoothstep
+    }
+    else
+    if(ease==2)
+    {
+        x = Math.max(0, Math.min(1, (r-nMin)/(nMax-nMin)));
+        result.set( nMin+x*x*x*(x*(x*6 - 15) + 10) * (nMax-nMin) ) ; // smootherstep
+    }
+
+}
+
+v.set(0);
+old_min.set(0);
+old_max.set(1);
+new_min.set(-1);
+new_max.set(1);
+
+
+v.onChange=exec;
+old_min.onChange=exec;
+old_max.onChange=exec;
+new_min.onChange=exec;
+new_max.onChange=exec;
+
+result.set(0);
+
+exec();
+
+};
+
+Ops.Math.MapRange.prototype = new CABLES.Op();
+CABLES.OPS["2617b407-60a0-4ff6-b4a7-18136cfa7817"]={f:Ops.Math.MapRange,objName:"Ops.Math.MapRange"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Math.Ease
+// 
+// **************************************************************
+
+Ops.Math.Ease = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const
+    inVal=op.inValue("Value"),
+    inMin=op.inValue("Min",0),
+    inMax=op.inValue("Max",1),
+    result=op.outValue("Result"),
+    anim=new CABLES.Anim();
+
+anim.createPort(op,"Easing",updateAnimEasing);
+anim.setValue(0,0);
+anim.setValue(1,1);
+
+op.onLoaded=inMin.onChange=inMax.onChange=updateMinMax;
+
+function updateMinMax()
+{
+    anim.keys[0].time=anim.keys[0].value=Math.min(inMin.get(),inMax.get());
+    anim.keys[1].time=anim.keys[1].value=Math.max(inMin.get(),inMax.get());
+}
+
+function updateAnimEasing()
+{
+    anim.keys[0].setEasing(anim.defaultEasing);
+}
+
+inVal.onChange=function()
+{
+    const r=anim.getValue(inVal.get());
+    result.set(r);
+};
+
+};
+
+Ops.Math.Ease.prototype = new CABLES.Op();
+CABLES.OPS["8f6e4a08-33e6-408f-ac4a-198bd03b417b"]={f:Ops.Math.Ease,objName:"Ops.Math.Ease"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Sidebar.Sidebar
+// 
+// **************************************************************
+
+Ops.Sidebar.Sidebar = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={style_css:"/*\n * SIDEBAR\n  http://danielstern.ca/range.css/#/\n  https://developer.mozilla.org/en-US/docs/Web/CSS/::-webkit-progress-value\n */\n\n\n.icon-chevron-down {\n    top: 2px;\n    right: 9px;\n}\n\n.iconsidebar-chevron-up {\n\tbackground-image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM4ODg4ODgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0iZmVhdGhlciBmZWF0aGVyLWNoZXZyb24tdXAiPjxwb2x5bGluZSBwb2ludHM9IjE4IDE1IDEyIDkgNiAxNSI+PC9wb2x5bGluZT48L3N2Zz4=);\n    top: 2px;\n    right: 9px;\n}\n\n.sidebar-cables-right\n{\n    right: 0px;\n    left: initial !important;\n}\n\n.sidebar-cables {\n    position: absolute;\n    top: 15px;\n    left: 15px;\n    border-radius: 10px;\n    /*border:10px solid #1a1a1a;*/\n    z-index: 100000;\n    color: #BBBBBB;\n    width: 220px;\n    max-height: 100%;\n    box-sizing: border-box;\n    overflow-y: auto;\n    overflow-x: hidden;\n    font-size: 13px;\n    font-family: Arial;\n    line-height: 1em; /* prevent emojis from breaking height of the title */\n    --sidebar-border-radius: 4px;\n    --sidebar-monospace-font-stack: \"SFMono-Regular\", Consolas, \"Liberation Mono\", Menlo, Courier, monospace;\n    --sidebar-hover-transition-time: .2s;\n}\n\n.sidebar-cables::selection {\n    background-color: #24baa7;\n    color: #EEEEEE;\n}\n\n.sidebar-cables::-webkit-scrollbar {\n    background-color: transparent;\n    --cables-scrollbar-width: 8px;\n    width: var(--cables-scrollbar-width);\n}\n\n.sidebar-cables::-webkit-scrollbar-track {\n    background-color: transparent;\n    width: var(--cables-scrollbar-width);\n}\n\n.sidebar-cables::-webkit-scrollbar-thumb {\n    background-color: #333333;\n    border-radius: 4px;\n    width: var(--cables-scrollbar-width);\n}\n\n.sidebar-cables--closed {\n    width: auto;\n}\n\n.sidebar__close-button {\n    background-color: #222;\n    -webkit-user-select: none;  /* Chrome all / Safari all */\n    -moz-user-select: none;     /* Firefox all */\n    -ms-user-select: none;      /* IE 10+ */\n    user-select: none;          /* Likely future */\n    transition: background-color var(--sidebar-hover-transition-time);\n    color: #CCCCCC;\n    height: 12px;\n    box-sizing: border-box;\n    padding-top: 2px;\n    text-align: center;\n    cursor: pointer;\n    /*border-top: 1px solid #272727;*/\n    border-radius: 0 0 var(--sidebar-border-radius) var(--sidebar-border-radius);\n    opacity: 1.0;\n    transition: opacity 0.3s;\n    overflow: hidden;\n}\n\n.sidebar__close-button-icon {\n    display: inline-block;\n    /*opacity: 0;*/\n    width: 21px;\n    height: 20px;\n    position: relative;\n    top: -1px;\n    /*background-image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM4ODg4ODgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0iZmVhdGhlciBmZWF0aGVyLWNoZXZyb24tdXAiPjxwb2x5bGluZSBwb2ludHM9IjE4IDE1IDEyIDkgNiAxNSI+PC9wb2x5bGluZT48L3N2Zz4=);*/\n    /*background-size: cover;*/\n    /*background-repeat: no-repeat;*/\n    /*background-repeat: no-repeat;*/\n    /*background-position: 0 -1px;*/\n}\n\n.sidebar--closed {\n    width: auto;\n    margin-right: 20px;\n}\n\n.sidebar--closed .sidebar__close-button {\n    margin-top: 8px;\n    margin-left: 8px;\n    padding-top: 13px;\n    padding-left: 11px;\n    padding-right: 11px;\n    width: 46px;\n    height: 46px;\n    border-radius: 50%;\n    cursor: pointer;\n    opacity: 0.3;\n}\n\n.sidebar--closed .sidebar__group\n{\n    display:none;\n\n}\n.sidebar--closed .sidebar__close-button-icon {\n    background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz48c3ZnIHdpZHRoPSIyMnB4IiBoZWlnaHQ9IjE3cHgiIHZpZXdCb3g9IjAgMCAyMiAxNyIgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIj4gICAgICAgIDx0aXRsZT5Hcm91cCAzPC90aXRsZT4gICAgPGRlc2M+Q3JlYXRlZCB3aXRoIFNrZXRjaC48L2Rlc2M+ICAgIDxkZWZzPjwvZGVmcz4gICAgPGcgaWQ9IkNhbnZhcy1TaWRlYmFyIiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4gICAgICAgIDxnIGlkPSJEZXNrdG9wLWdyZWVuLWJsdWlzaC1Db3B5LTkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMC4wMDAwMDAsIC0yMi4wMDAwMDApIj4gICAgICAgICAgICA8ZyBpZD0iR3JvdXAtMyIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjAuMDAwMDAwLCAyMi4wMDAwMDApIj4gICAgICAgICAgICAgICAgPHBhdGggZD0iTTAuNSwyLjUgTDIuNSwyLjUiIGlkPSJMaW5lLTIiIHN0cm9rZT0iIzk3OTc5NyIgc3Ryb2tlLWxpbmVjYXA9InNxdWFyZSI+PC9wYXRoPiAgICAgICAgICAgICAgICA8cGF0aCBkPSJNMTAuNSwyLjUgTDIxLjUsMi41IiBpZD0iTGluZS0yIiBzdHJva2U9IiM5Nzk3OTciIHN0cm9rZS1saW5lY2FwPSJzcXVhcmUiPjwvcGF0aD4gICAgICAgICAgICAgICAgPHBhdGggZD0iTTAuNSw4LjUgTDExLjUsOC41IiBpZD0iTGluZS0yIiBzdHJva2U9IiM5Nzk3OTciIHN0cm9rZS1saW5lY2FwPSJzcXVhcmUiPjwvcGF0aD4gICAgICAgICAgICAgICAgPHBhdGggZD0iTTE5LjUsOC41IEwyMS41LDguNSIgaWQ9IkxpbmUtMiIgc3Ryb2tlPSIjOTc5Nzk3IiBzdHJva2UtbGluZWNhcD0ic3F1YXJlIj48L3BhdGg+ICAgICAgICAgICAgICAgIDxwYXRoIGQ9Ik0wLjUsMTQuNSBMNS41LDE0LjUiIGlkPSJMaW5lLTIiIHN0cm9rZT0iIzk3OTc5NyIgc3Ryb2tlLWxpbmVjYXA9InNxdWFyZSI+PC9wYXRoPiAgICAgICAgICAgICAgICA8cGF0aCBkPSJNMTMuNSwxNC41IEwyMS41LDE0LjUiIGlkPSJMaW5lLTIiIHN0cm9rZT0iIzk3OTc5NyIgc3Ryb2tlLWxpbmVjYXA9InNxdWFyZSI+PC9wYXRoPiAgICAgICAgICAgICAgICA8Y2lyY2xlIGlkPSJPdmFsLTMiIGZpbGw9IiM5Nzk3OTciIGN4PSI2LjUiIGN5PSIyLjUiIHI9IjIuNSI+PC9jaXJjbGU+ICAgICAgICAgICAgICAgIDxjaXJjbGUgaWQ9Ik92YWwtMyIgZmlsbD0iIzk3OTc5NyIgY3g9IjE1LjUiIGN5PSI4LjUiIHI9IjIuNSI+PC9jaXJjbGU+ICAgICAgICAgICAgICAgIDxjaXJjbGUgaWQ9Ik92YWwtMyIgZmlsbD0iIzk3OTc5NyIgY3g9IjkuNSIgY3k9IjE0LjUiIHI9IjIuNSI+PC9jaXJjbGU+ICAgICAgICAgICAgPC9nPiAgICAgICAgPC9nPiAgICA8L2c+PC9zdmc+);\n    background-position: 0px 0px;\n}\n\n.sidebar__close-button:hover {\n    background-color: #111111;\n    opacity: 1.0 !important;\n}\n\n/*\n * SIDEBAR ITEMS\n */\n\n.sidebar__items {\n    /* max-height: 1000px; */\n    /* transition: max-height 0.5;*/\n    background-color: #222;\n}\n\n.sidebar--closed .sidebar__items {\n    /* max-height: 0; */\n    height: 0;\n    display: none;\n    pointer-interactions: none;\n}\n\n.sidebar__item__right {\n    float: right;\n}\n\n/*\n * SIDEBAR GROUP\n */\n\n.sidebar__group {\n    /*background-color: #1A1A1A;*/\n    overflow: hidden;\n    box-sizing: border-box;\n    animate: height;\n    /* max-height: 1000px; */\n    /* transition: max-height 0.5s; */\n--sidebar-group-header-height: 33px;\n}\n\n.sidebar__group-items\n{\n    padding-top: 15px;\n    padding-bottom: 15px;\n}\n\n.sidebar__group--closed {\n    /* max-height: 13px; */\n    height: var(--sidebar-group-header-height);\n}\n\n.sidebar__group-header {\n    box-sizing: border-box;\n    color: #EEEEEE;\n    background-color: #151515;\n    -webkit-user-select: none;  /* Chrome all / Safari all */\n    -moz-user-select: none;     /* Firefox all */\n    -ms-user-select: none;      /* IE 10+ */\n    user-select: none;          /* Likely future */\n    height: var(--sidebar-group-header-height);\n    padding-top: 7px;\n    text-transform: uppercase;\n    letter-spacing: 0.08em;\n    cursor: pointer;\n    transition: background-color var(--sidebar-hover-transition-time);\n    position: relative;\n}\n\n.sidebar__group-header:hover {\n  background-color: #111111;\n}\n\n.sidebar__group-header-title {\n  float: left;\n  overflow: hidden;\n  padding: 0 15px;\n  padding-top:5px;\n  font-weight:bold;\n}\n\n.sidebar__group-header-undo {\n    float: right;\n    overflow: hidden;\n    padding-right: 15px;\n    padding-top:5px;\n    font-weight:bold;\n  }\n\n.sidebar__group-header-icon {\n    width: 17px;\n    height: 14px;\n    background-repeat: no-repeat;\n    display: inline-block;\n    position: absolute;\n    background-size: cover;\n\n    /* icon open */\n    /* feather icon: chevron up */\n    background-image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM4ODg4ODgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0iZmVhdGhlciBmZWF0aGVyLWNoZXZyb24tdXAiPjxwb2x5bGluZSBwb2ludHM9IjE4IDE1IDEyIDkgNiAxNSI+PC9wb2x5bGluZT48L3N2Zz4=);\n    top: 4px;\n    right: 5px;\n    opacity: 0.0;\n    transition: opacity 0.3;\n}\n\n.sidebar__group-header:hover .sidebar__group-header-icon {\n    opacity: 1.0;\n}\n\n/* icon closed */\n.sidebar__group--closed .sidebar__group-header-icon {\n    /* feather icon: chevron down */\n    background-image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM4ODg4ODgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0iZmVhdGhlciBmZWF0aGVyLWNoZXZyb24tZG93biI+PHBvbHlsaW5lIHBvaW50cz0iNiA5IDEyIDE1IDE4IDkiPjwvcG9seWxpbmU+PC9zdmc+);\n    top: 4px;\n    right: 5px;\n}\n\n/*\n * SIDEBAR ITEM\n */\n\n.sidebar__item\n{\n    box-sizing: border-box;\n    padding: 7px;\n    padding-left:15px;\n    padding-right:15px;\n\n    overflow: hidden;\n    position: relative;\n}\n\n.sidebar__item-label {\n    display: inline-block;\n    -webkit-user-select: none;  /* Chrome all / Safari all */\n    -moz-user-select: none;     /* Firefox all */\n    -ms-user-select: none;      /* IE 10+ */\n    user-select: none;          /* Likely future */\n    width: calc(50% - 7px);\n    margin-right: 7px;\n    margin-top: 2px;\n    text-overflow: ellipsis;\n    /* overflow: hidden; */\n}\n\n.sidebar__item-value-label {\n    font-family: var(--sidebar-monospace-font-stack);\n    display: inline-block;\n    text-overflow: ellipsis;\n    overflow: hidden;\n    white-space: nowrap;\n    max-width: 60%;\n}\n\n.sidebar__item-value-label::selection {\n    background-color: #24baa7;\n    color: #EEEEEE;\n}\n\n.sidebar__item + .sidebar__item,\n.sidebar__item + .sidebar__group,\n.sidebar__group + .sidebar__item,\n.sidebar__group + .sidebar__group {\n    /*border-top: 1px solid #272727;*/\n}\n\n/*\n * SIDEBAR ITEM TOGGLE\n */\n\n.sidebar__toggle {\n    cursor: pointer;\n}\n\n.sidebar__toggle-input {\n    --sidebar-toggle-input-color: #CCCCCC;\n    --sidebar-toggle-input-color-hover: #EEEEEE;\n    --sidebar-toggle-input-border-size: 2px;\n    display: inline;\n    float: right;\n    box-sizing: border-box;\n    border-radius: 50%;\n    cursor: pointer;\n    --toggle-size: 11px;\n    margin-top: 2px;\n    background-color: transparent !important;\n    border: var(--sidebar-toggle-input-border-size) solid var(--sidebar-toggle-input-color);\n    width: var(--toggle-size);\n    height: var(--toggle-size);\n    transition: background-color var(--sidebar-hover-transition-time);\n    transition: border-color var(--sidebar-hover-transition-time);\n}\n.sidebar__toggle:hover .sidebar__toggle-input {\n    border-color: var(--sidebar-toggle-input-color-hover);\n}\n\n.sidebar__toggle .sidebar__item-value-label {\n    -webkit-user-select: none;  /* Chrome all / Safari all */\n    -moz-user-select: none;     /* Firefox all */\n    -ms-user-select: none;      /* IE 10+ */\n    user-select: none;          /* Likely future */\n    max-width: calc(50% - 12px);\n}\n.sidebar__toggle-input::after { clear: both; }\n\n.sidebar__toggle--active .icon_toggle\n{\n\n    background-image: url(data:image/svg+xml;base64,PHN2ZyBoZWlnaHQ9IjE1cHgiIHdpZHRoPSIzMHB4IiBmaWxsPSIjMDZmNzhiIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB2ZXJzaW9uPSIxLjEiIHg9IjBweCIgeT0iMHB4IiB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgMTAwIDEwMCIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PGcgZGlzcGxheT0ibm9uZSI+PGcgZGlzcGxheT0iaW5saW5lIj48Zz48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZmlsbD0iIzA2Zjc4YiIgZD0iTTMwLDI3QzE3LjM1LDI3LDcsMzcuMzUsNyw1MGwwLDBjMCwxMi42NSwxMC4zNSwyMywyMywyM2g0MCBjMTIuNjUsMCwyMy0xMC4zNSwyMy0yM2wwLDBjMC0xMi42NS0xMC4zNS0yMy0yMy0yM0gzMHogTTcwLDY3Yy05LjM4OSwwLTE3LTcuNjEtMTctMTdzNy42MTEtMTcsMTctMTdzMTcsNy42MSwxNywxNyAgICAgUzc5LjM4OSw2Nyw3MCw2N3oiPjwvcGF0aD48L2c+PC9nPjwvZz48Zz48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTMwLDI3QzE3LjM1LDI3LDcsMzcuMzUsNyw1MGwwLDBjMCwxMi42NSwxMC4zNSwyMywyMywyM2g0MCAgIGMxMi42NSwwLDIzLTEwLjM1LDIzLTIzbDAsMGMwLTEyLjY1LTEwLjM1LTIzLTIzLTIzSDMweiBNNzAsNjdjLTkuMzg5LDAtMTctNy42MS0xNy0xN3M3LjYxMS0xNywxNy0xN3MxNyw3LjYxLDE3LDE3ICAgUzc5LjM4OSw2Nyw3MCw2N3oiPjwvcGF0aD48L2c+PGcgZGlzcGxheT0ibm9uZSI+PGcgZGlzcGxheT0iaW5saW5lIj48cGF0aCBmaWxsPSIjMDZmNzhiIiBzdHJva2U9IiMwNmY3OGIiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLW1pdGVybGltaXQ9IjEwIiBkPSJNNyw1MGMwLDEyLjY1LDEwLjM1LDIzLDIzLDIzaDQwICAgIGMxMi42NSwwLDIzLTEwLjM1LDIzLTIzbDAsMGMwLTEyLjY1LTEwLjM1LTIzLTIzLTIzSDMwQzE3LjM1LDI3LDcsMzcuMzUsNyw1MEw3LDUweiI+PC9wYXRoPjwvZz48Y2lyY2xlIGRpc3BsYXk9ImlubGluZSIgZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGZpbGw9IiMwNmY3OGIiIHN0cm9rZT0iIzA2Zjc4YiIgc3Ryb2tlLXdpZHRoPSI0IiBzdHJva2UtbWl0ZXJsaW1pdD0iMTAiIGN4PSI3MCIgY3k9IjUwIiByPSIxNyI+PC9jaXJjbGU+PC9nPjxnIGRpc3BsYXk9Im5vbmUiPjxwYXRoIGRpc3BsYXk9ImlubGluZSIgZD0iTTcwLDI1SDMwQzE2LjIxNSwyNSw1LDM2LjIxNSw1LDUwczExLjIxNSwyNSwyNSwyNWg0MGMxMy43ODUsMCwyNS0xMS4yMTUsMjUtMjVTODMuNzg1LDI1LDcwLDI1eiBNNzAsNzEgICBIMzBDMTguNDIxLDcxLDksNjEuNTc5LDksNTBzOS40MjEtMjEsMjEtMjFoNDBjMTEuNTc5LDAsMjEsOS40MjEsMjEsMjFTODEuNTc5LDcxLDcwLDcxeiBNNzAsMzFjLTEwLjQ3NywwLTE5LDguNTIzLTE5LDE5ICAgczguNTIzLDE5LDE5LDE5czE5LTguNTIzLDE5LTE5UzgwLjQ3NywzMSw3MCwzMXogTTcwLDY1Yy04LjI3MSwwLTE1LTYuNzI5LTE1LTE1czYuNzI5LTE1LDE1LTE1czE1LDYuNzI5LDE1LDE1Uzc4LjI3MSw2NSw3MCw2NXoiPjwvcGF0aD48L2c+PC9zdmc+);\n    opacity: 1;\n    transform: rotate(0deg);\n}\n\n\n.icon_toggle\n{\n    float: right;\n    width:40px;\n    height:18px;\n    background-image: url(data:image/svg+xml;base64,PHN2ZyBoZWlnaHQ9IjE1cHgiIHdpZHRoPSIzMHB4IiBmaWxsPSIjYWFhYWFhIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB2ZXJzaW9uPSIxLjEiIHg9IjBweCIgeT0iMHB4IiB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgMTAwIDEwMCIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PGcgZGlzcGxheT0ibm9uZSI+PGcgZGlzcGxheT0iaW5saW5lIj48Zz48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZmlsbD0iI2FhYWFhYSIgZD0iTTMwLDI3QzE3LjM1LDI3LDcsMzcuMzUsNyw1MGwwLDBjMCwxMi42NSwxMC4zNSwyMywyMywyM2g0MCBjMTIuNjUsMCwyMy0xMC4zNSwyMy0yM2wwLDBjMC0xMi42NS0xMC4zNS0yMy0yMy0yM0gzMHogTTcwLDY3Yy05LjM4OSwwLTE3LTcuNjEtMTctMTdzNy42MTEtMTcsMTctMTdzMTcsNy42MSwxNywxNyAgICAgUzc5LjM4OSw2Nyw3MCw2N3oiPjwvcGF0aD48L2c+PC9nPjwvZz48Zz48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTMwLDI3QzE3LjM1LDI3LDcsMzcuMzUsNyw1MGwwLDBjMCwxMi42NSwxMC4zNSwyMywyMywyM2g0MCAgIGMxMi42NSwwLDIzLTEwLjM1LDIzLTIzbDAsMGMwLTEyLjY1LTEwLjM1LTIzLTIzLTIzSDMweiBNNzAsNjdjLTkuMzg5LDAtMTctNy42MS0xNy0xN3M3LjYxMS0xNywxNy0xN3MxNyw3LjYxLDE3LDE3ICAgUzc5LjM4OSw2Nyw3MCw2N3oiPjwvcGF0aD48L2c+PGcgZGlzcGxheT0ibm9uZSI+PGcgZGlzcGxheT0iaW5saW5lIj48cGF0aCBmaWxsPSIjYWFhYWFhIiBzdHJva2U9IiNhYWFhYWEiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLW1pdGVybGltaXQ9IjEwIiBkPSJNNyw1MGMwLDEyLjY1LDEwLjM1LDIzLDIzLDIzaDQwICAgIGMxMi42NSwwLDIzLTEwLjM1LDIzLTIzbDAsMGMwLTEyLjY1LTEwLjM1LTIzLTIzLTIzSDMwQzE3LjM1LDI3LDcsMzcuMzUsNyw1MEw3LDUweiI+PC9wYXRoPjwvZz48Y2lyY2xlIGRpc3BsYXk9ImlubGluZSIgZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGZpbGw9IiNhYWFhYWEiIHN0cm9rZT0iI2FhYWFhYSIgc3Ryb2tlLXdpZHRoPSI0IiBzdHJva2UtbWl0ZXJsaW1pdD0iMTAiIGN4PSI3MCIgY3k9IjUwIiByPSIxNyI+PC9jaXJjbGU+PC9nPjxnIGRpc3BsYXk9Im5vbmUiPjxwYXRoIGRpc3BsYXk9ImlubGluZSIgZD0iTTcwLDI1SDMwQzE2LjIxNSwyNSw1LDM2LjIxNSw1LDUwczExLjIxNSwyNSwyNSwyNWg0MGMxMy43ODUsMCwyNS0xMS4yMTUsMjUtMjVTODMuNzg1LDI1LDcwLDI1eiBNNzAsNzEgICBIMzBDMTguNDIxLDcxLDksNjEuNTc5LDksNTBzOS40MjEtMjEsMjEtMjFoNDBjMTEuNTc5LDAsMjEsOS40MjEsMjEsMjFTODEuNTc5LDcxLDcwLDcxeiBNNzAsMzFjLTEwLjQ3NywwLTE5LDguNTIzLTE5LDE5ICAgczguNTIzLDE5LDE5LDE5czE5LTguNTIzLDE5LTE5UzgwLjQ3NywzMSw3MCwzMXogTTcwLDY1Yy04LjI3MSwwLTE1LTYuNzI5LTE1LTE1czYuNzI5LTE1LDE1LTE1czE1LDYuNzI5LDE1LDE1Uzc4LjI3MSw2NSw3MCw2NXoiPjwvcGF0aD48L2c+PC9zdmc+);\n    background-size: 50px 37px;\n    background-position: -6px -10px;\n    transform: rotate(180deg);\n    opacity: 0.4;\n}\n\n\n\n/*.sidebar__toggle--active .sidebar__toggle-input {*/\n/*    transition: background-color var(--sidebar-hover-transition-time);*/\n/*    background-color: var(--sidebar-toggle-input-color);*/\n/*}*/\n/*.sidebar__toggle--active .sidebar__toggle-input:hover*/\n/*{*/\n/*    background-color: var(--sidebar-toggle-input-color-hover);*/\n/*    border-color: var(--sidebar-toggle-input-color-hover);*/\n/*    transition: background-color var(--sidebar-hover-transition-time);*/\n/*    transition: border-color var(--sidebar-hover-transition-time);*/\n/*}*/\n\n/*\n * SIDEBAR ITEM BUTTON\n */\n\n.sidebar__button {}\n\n.sidebar__button-input {\n    -webkit-user-select: none;  /* Chrome all / Safari all */\n    -moz-user-select: none;     /* Firefox all */\n    -ms-user-select: none;      /* IE 10+ */\n    user-select: none;          /* Likely future */\n    height: 24px;\n    background-color: transparent;\n    color: #CCCCCC;\n    box-sizing: border-box;\n    padding-top: 3px;\n    text-align: center;\n    border-radius: 125px;\n    border:2px solid #555;\n    cursor: pointer;\n}\n\n.sidebar__button-input.plus, .sidebar__button-input.minus {\n    display: inline-block;\n    min-width: 20px;\n}\n\n.sidebar__button-input:hover {\n  background-color: #333;\n  border:2px solid #07f78c;\n}\n\n/*\n * VALUE DISPLAY (shows a value)\n */\n\n.sidebar__value-display {}\n\n/*\n * SLIDER\n */\n\n.sidebar__slider {\n    --sidebar-slider-input-height: 3px;\n}\n\n.sidebar__slider-input-wrapper {\n    width: 100%;\n    margin-top: 8px;\n    position: relative;\n}\n\n.sidebar__slider-input {\n    -webkit-appearance: none;\n    appearance: none;\n    margin: 0;\n    width: 100%;\n    height: var(--sidebar-slider-input-height);\n    background: #555;\n    cursor: pointer;\n    outline: 0;\n\n    -webkit-transition: .2s;\n    transition: background-color .2s;\n    border: none;\n}\n\n.sidebar__slider-input:focus, .sidebar__slider-input:hover {\n    border: none;\n}\n\n.sidebar__slider-input-active-track {\n    user-select: none;\n    position: absolute;\n    z-index: 11;\n    top: 0;\n    left: 0;\n    background-color: #07f78c;\n    pointer-events: none;\n    height: var(--sidebar-slider-input-height);\n\n    /* width: 10px; */\n}\n\n/* Mouse-over effects */\n.sidebar__slider-input:hover {\n    /*background-color: #444444;*/\n}\n\n/*.sidebar__slider-input::-webkit-progress-value {*/\n/*    background-color: green;*/\n/*    color:green;*/\n\n/*    }*/\n\n/* The slider handle (use -webkit- (Chrome, Opera, Safari, Edge) and -moz- (Firefox) to override default look) */\n\n.sidebar__slider-input::-moz-range-thumb\n{\n    position: absolute;\n    height: 15px;\n    width: 15px;\n    z-index: 900 !important;\n    border-radius: 20px !important;\n    cursor: pointer;\n    background: #07f78c !important;\n    user-select: none;\n\n}\n\n.sidebar__slider-input::-webkit-slider-thumb\n{\n    position: relative;\n    appearance: none;\n    -webkit-appearance: none;\n    user-select: none;\n    height: 15px;\n    width: 15px;\n    display: block;\n    z-index: 900 !important;\n    border: 0;\n    border-radius: 20px !important;\n    cursor: pointer;\n    background: #777 !important;\n}\n\n.sidebar__slider-input:hover ::-webkit-slider-thumb {\n    background-color: #EEEEEE !important;\n}\n\n/*.sidebar__slider-input::-moz-range-thumb {*/\n\n/*    width: 0 !important;*/\n/*    height: var(--sidebar-slider-input-height);*/\n/*    background: #EEEEEE;*/\n/*    cursor: pointer;*/\n/*    border-radius: 0 !important;*/\n/*    border: none;*/\n/*    outline: 0;*/\n/*    z-index: 100 !important;*/\n/*}*/\n\n.sidebar__slider-input::-moz-range-track {\n    background-color: transparent;\n    z-index: 11;\n}\n\n/*.sidebar__slider-input::-moz-range-thumb:hover {*/\n  /* background-color: #EEEEEE; */\n/*}*/\n\n\n/*.sidebar__slider-input-wrapper:hover .sidebar__slider-input-active-track {*/\n/*    background-color: #EEEEEE;*/\n/*}*/\n\n/*.sidebar__slider-input-wrapper:hover .sidebar__slider-input::-moz-range-thumb {*/\n/*    background-color: #fff !important;*/\n/*}*/\n\n/*.sidebar__slider-input-wrapper:hover .sidebar__slider-input::-webkit-slider-thumb {*/\n/*    background-color: #EEEEEE;*/\n/*}*/\n\n.sidebar__slider input[type=text] {\n    box-sizing: border-box;\n    /*background-color: #333333;*/\n    text-align: right;\n    color: #BBBBBB;\n    display: inline-block;\n    background-color: transparent !important;\n\n    width: 40%;\n    height: 18px;\n    outline: none;\n    border: none;\n    border-radius: 0;\n    padding: 0 0 0 4px !important;\n    margin: 0;\n}\n\n.sidebar__slider input[type=text]:active,\n.sidebar__slider input[type=text]:focus,\n.sidebar__slider input[type=text]:hover {\n\n    color: #EEEEEE;\n}\n\n/*\n * TEXT / DESCRIPTION\n */\n\n.sidebar__text .sidebar__item-label {\n    width: auto;\n    display: block;\n    max-height: none;\n    margin-right: 0;\n    line-height: 1.1em;\n}\n\n/*\n * SIDEBAR INPUT\n */\n.sidebar__text-input textarea,\n.sidebar__text-input input[type=text] {\n    box-sizing: border-box;\n    background-color: #333333;\n    color: #BBBBBB;\n    display: inline-block;\n    width: 50%;\n    height: 18px;\n    outline: none;\n    border: none;\n    border-radius: 0;\n    border:1px solid #666;\n    padding: 0 0 0 4px !important;\n    margin: 0;\n}\n\n.sidebar__color-picker .sidebar__item-label\n{\n    width:45%;\n}\n\n.sidebar__text-input textarea,\n.sidebar__text-input input[type=text]:active,\n.sidebar__text-input input[type=text]:focus,\n.sidebar__text-input input[type=text]:hover {\n    background-color: transparent;\n    color: #EEEEEE;\n}\n\n.sidebar__text-input textarea\n{\n    margin-top:10px;\n    height:60px;\n    width:100%;\n}\n\n/*\n * SIDEBAR SELECT\n */\n\n\n\n .sidebar__select {}\n .sidebar__select-select {\n    color: #BBBBBB;\n    /*-webkit-appearance: none;*/\n    /*-moz-appearance: none;*/\n    appearance: none;\n    /*box-sizing: border-box;*/\n    width: 50%;\n    height: 20px;\n    background-color: #333333;\n    /*background-image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM4ODg4ODgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0iZmVhdGhlciBmZWF0aGVyLWNoZXZyb24tZG93biI+PHBvbHlsaW5lIHBvaW50cz0iNiA5IDEyIDE1IDE4IDkiPjwvcG9seWxpbmU+PC9zdmc+);*/\n    background-repeat: no-repeat;\n    background-position: right center;\n    background-size: 16px 16px;\n    margin: 0;\n    /*padding: 0 2 2 6px;*/\n    border-radius: 5px;\n    border: 1px solid #777;\n    background-color: #444;\n    cursor: pointer;\n    outline: none;\n    padding-left: 5px;\n\n }\n\n.sidebar__select-select:hover,\n.sidebar__select-select:active,\n.sidebar__select-select:active {\n    background-color: #444444;\n    color: #EEEEEE;\n}\n\n/*\n * COLOR PICKER\n */\n\n .sidebar__color-picker-color-input {}\n\n .sidebar__color-picker input[type=text] {\n    box-sizing: border-box;\n    background-color: #333333;\n    color: #BBBBBB;\n    display: inline-block;\n    width: calc(50% - 21px); /* 50% minus space of picker circle */\n    height: 18px;\n    outline: none;\n    border: none;\n    border-radius: 0;\n    padding: 0 0 0 4px !important;\n    margin: 0;\n    margin-right: 7px;\n}\n\n.sidebar__color-picker input[type=text]:active,\n.sidebar__color-picker input[type=text]:focus,\n.sidebar__color-picker input[type=text]:hover {\n    background-color: #444444;\n    color: #EEEEEE;\n}\n\n.sidebar__color-picker input[type=color],\n.sidebar__palette-picker input[type=color] {\n    display: inline-block;\n    border-radius: 100%;\n    height: 14px;\n    width: 14px;\n    padding: 0;\n    border: none;\n    border-color: transparent;\n    outline: none;\n    background: none;\n    appearance: none;\n    -moz-appearance: none;\n    -webkit-appearance: none;\n    cursor: pointer;\n    position: relative;\n    top: 3px;\n}\n.sidebar__color-picker input[type=color]:focus,\n.sidebar__palette-picker input[type=color]:focus {\n    outline: none;\n}\n.sidebar__color-picker input[type=color]::-moz-color-swatch,\n.sidebar__palette-picker input[type=color]::-moz-color-swatch {\n    border: none;\n}\n.sidebar__color-picker input[type=color]::-webkit-color-swatch-wrapper,\n.sidebar__palette-picker input[type=color]::-webkit-color-swatch-wrapper {\n    padding: 0;\n}\n.sidebar__color-picker input[type=color]::-webkit-color-swatch,\n.sidebar__palette-picker input[type=color]::-webkit-color-swatch {\n    border: none;\n    border-radius: 100%;\n}\n\n/*\n * Palette Picker\n */\n.sidebar__palette-picker .sidebar__palette-picker-color-input.first {\n    margin-left: 0;\n}\n.sidebar__palette-picker .sidebar__palette-picker-color-input.last {\n    margin-right: 0;\n}\n.sidebar__palette-picker .sidebar__palette-picker-color-input {\n    margin: 0 4px;\n}\n\n.sidebar__palette-picker .circlebutton {\n    width: 14px;\n    height: 14px;\n    border-radius: 1em;\n    display: inline-block;\n    top: 3px;\n    position: relative;\n}\n\n/*\n * Preset\n */\n.sidebar__item-presets-preset\n{\n    padding:4px;\n    cursor:pointer;\n    padding-left:8px;\n    padding-right:8px;\n    margin-right:4px;\n    background-color:#444;\n}\n\n.sidebar__item-presets-preset:hover\n{\n    background-color:#666;\n}\n\n.sidebar__greyout\n{\n    background: #222;\n    opacity: 0.8;\n    width: 100%;\n    height: 100%;\n    position: absolute;\n    z-index: 1000;\n    right: 0;\n    top: 0;\n}\n",};
+// vars
+const CSS_ELEMENT_CLASS = "cables-sidebar-style"; /* class for the style element to be generated */
+const CSS_ELEMENT_DYNAMIC_CLASS = "cables-sidebar-dynamic-style"; /* things which can be set via op-port, but not attached to the elements themselves, e.g. minimized opacity */
+const SIDEBAR_CLASS = "sidebar-cables";
+const SIDEBAR_ID = "sidebar" + CABLES.uuid();
+const SIDEBAR_ITEMS_CLASS = "sidebar__items";
+const SIDEBAR_OPEN_CLOSE_BTN_CLASS = "sidebar__close-button";
+const SIDEBAR_OPEN_CLOSE_BTN_ICON_CLASS = "sidebar__close-button-icon";
+const BTN_TEXT_OPEN = ""; // 'Close';
+const BTN_TEXT_CLOSED = ""; // 'Show Controls';
+
+let openCloseBtn = null;
+let openCloseBtnIcon = null;
+let headerTitleText = null;
+
+// inputs
+const visiblePort = op.inValueBool("Visible", true);
+const opacityPort = op.inValueSlider("Opacity", 1);
+const defaultMinimizedPort = op.inValueBool("Default Minimized");
+const minimizedOpacityPort = op.inValueSlider("Minimized Opacity", 0.5);
+const undoButtonPort = op.inValueBool("Show undo button", false);
+
+const inTitle = op.inString("Title", "Sidebar");
+const side = op.inValueBool("Side");
+
+// outputs
+const childrenPort = op.outObject("childs");
+
+let sidebarEl = document.querySelector("." + SIDEBAR_ID);
+if (!sidebarEl)
+{
+    sidebarEl = initSidebarElement();
+}
+// if(!sidebarEl) return;
+const sidebarItemsEl = sidebarEl.querySelector("." + SIDEBAR_ITEMS_CLASS);
+childrenPort.set({
+    "parentElement": sidebarItemsEl,
+    "parentOp": op,
+});
+onDefaultMinimizedPortChanged();
+initSidebarCss();
+updateDynamicStyles();
+
+// change listeners
+visiblePort.onChange = onVisiblePortChange;
+opacityPort.onChange = onOpacityPortChange;
+defaultMinimizedPort.onChange = onDefaultMinimizedPortChanged;
+minimizedOpacityPort.onChange = onMinimizedOpacityPortChanged;
+undoButtonPort.onChange = onUndoButtonChange;
+op.onDelete = onDelete;
+
+// functions
+
+function onMinimizedOpacityPortChanged()
+{
+    updateDynamicStyles();
+}
+
+side.onChange = function ()
+{
+    if (side.get()) sidebarEl.classList.add("sidebar-cables-right");
+    else sidebarEl.classList.remove("sidebar-cables-right");
+};
+
+function onUndoButtonChange()
+{
+    const header = document.querySelector(".sidebar-cables .sidebar__group-header");
+    if (header)
+    {
+        initUndoButton(header);
+    }
+}
+
+function initUndoButton(header)
+{
+    if (header)
+    {
+        const undoButton = document.querySelector(".sidebar-cables .sidebar__group-header .sidebar__group-header-undo");
+        if (undoButton)
+        {
+            if (!undoButtonPort.get())
+            {
+                header.removeChild(undoButton);
+            }
+        }
+        else
+        {
+            if (undoButtonPort.get())
+            {
+                const headerUndo = document.createElement("span");
+                headerUndo.classList.add("sidebar__group-header-undo");
+                headerUndo.classList.add("fa");
+                headerUndo.classList.add("fa-undo");
+
+                headerUndo.addEventListener("click", function (event)
+                {
+                    event.stopPropagation();
+                    const reloadables = document.querySelectorAll(".sidebar-cables .sidebar__reloadable");
+                    const doubleClickEvent = document.createEvent("MouseEvents");
+                    doubleClickEvent.initEvent("dblclick", true, true);
+                    reloadables.forEach((reloadable) =>
+                    {
+                        reloadable.dispatchEvent(doubleClickEvent);
+                    });
+                });
+                header.appendChild(headerUndo);
+            }
+        }
+    }
+}
+
+function onDefaultMinimizedPortChanged()
+{
+    if (!openCloseBtn) { return; }
+    if (defaultMinimizedPort.get())
+    {
+        sidebarEl.classList.add("sidebar--closed");
+        // openCloseBtn.textContent = BTN_TEXT_CLOSED;
+    }
+    else
+    {
+        sidebarEl.classList.remove("sidebar--closed");
+        // openCloseBtn.textContent = BTN_TEXT_OPEN;
+    }
+}
+
+function onOpacityPortChange()
+{
+    const opacity = opacityPort.get();
+    sidebarEl.style.opacity = opacity;
+}
+
+function onVisiblePortChange()
+{
+    if (visiblePort.get())
+    {
+        sidebarEl.style.display = "block";
+    }
+    else
+    {
+        sidebarEl.style.display = "none";
+    }
+}
+
+side.onChanged = function ()
+{
+
+};
+
+/**
+ * Some styles cannot be set directly inline, so a dynamic stylesheet is needed.
+ * Here hover states can be set later on e.g.
+ */
+function updateDynamicStyles()
+{
+    const dynamicStyles = document.querySelectorAll("." + CSS_ELEMENT_DYNAMIC_CLASS);
+    if (dynamicStyles)
+    {
+        dynamicStyles.forEach(function (e)
+        {
+            e.parentNode.removeChild(e);
+        });
+    }
+    const newDynamicStyle = document.createElement("style");
+    newDynamicStyle.classList.add(CSS_ELEMENT_DYNAMIC_CLASS);
+    let cssText = ".sidebar--closed .sidebar__close-button { ";
+    cssText += "opacity: " + minimizedOpacityPort.get();
+    cssText += "}";
+    const cssTextEl = document.createTextNode(cssText);
+    newDynamicStyle.appendChild(cssTextEl);
+    document.body.appendChild(newDynamicStyle);
+}
+
+function initSidebarElement()
+{
+    const element = document.createElement("div");
+    element.classList.add(SIDEBAR_CLASS);
+    element.classList.add(SIDEBAR_ID);
+    const canvasWrapper = op.patch.cgl.canvas.parentElement; /* maybe this is bad outside cables!? */
+
+    // header...
+    const headerGroup = document.createElement("div");
+    headerGroup.classList.add("sidebar__group");
+    element.appendChild(headerGroup);
+    const header = document.createElement("div");
+    header.classList.add("sidebar__group-header");
+    element.appendChild(header);
+    const headerTitle = document.createElement("span");
+    headerTitle.classList.add("sidebar__group-header-title");
+    headerTitleText = document.createElement("span");
+    headerTitleText.classList.add("sidebar__group-header-title-text");
+    headerTitleText.innerHTML = inTitle.get();
+    headerTitle.appendChild(headerTitleText);
+    header.appendChild(headerTitle);
+
+    initUndoButton(header);
+
+    headerGroup.appendChild(header);
+    element.appendChild(headerGroup);
+    headerGroup.addEventListener("click", onOpenCloseBtnClick);
+
+    if (!canvasWrapper)
+    {
+        op.warn("[sidebar] no canvas parentelement found...");
+        return;
+    }
+    canvasWrapper.appendChild(element);
+    const items = document.createElement("div");
+    items.classList.add(SIDEBAR_ITEMS_CLASS);
+    element.appendChild(items);
+    openCloseBtn = document.createElement("div");
+    openCloseBtn.classList.add(SIDEBAR_OPEN_CLOSE_BTN_CLASS);
+    openCloseBtn.addEventListener("click", onOpenCloseBtnClick);
+    // openCloseBtn.textContent = BTN_TEXT_OPEN;
+    element.appendChild(openCloseBtn);
+    openCloseBtnIcon = document.createElement("span");
+    openCloseBtnIcon.classList.add(SIDEBAR_OPEN_CLOSE_BTN_ICON_CLASS);
+    openCloseBtn.appendChild(openCloseBtnIcon);
+
+    return element;
+}
+
+inTitle.onChange = function ()
+{
+    if (headerTitleText)headerTitleText.innerHTML = inTitle.get();
+};
+
+function setClosed(b)
+{
+
+}
+
+function onOpenCloseBtnClick(ev)
+{
+    ev.stopPropagation();
+    if (!sidebarEl) { op.error("Sidebar could not be closed..."); return; }
+    sidebarEl.classList.toggle("sidebar--closed");
+    const btn = ev.target;
+    let btnText = BTN_TEXT_OPEN;
+    if (sidebarEl.classList.contains("sidebar--closed")) btnText = BTN_TEXT_CLOSED;
+}
+
+function initSidebarCss()
+{
+    // var cssEl = document.getElementById(CSS_ELEMENT_ID);
+    const cssElements = document.querySelectorAll("." + CSS_ELEMENT_CLASS);
+    // remove old script tag
+    if (cssElements)
+    {
+        cssElements.forEach(function (e)
+        {
+            e.parentNode.removeChild(e);
+        });
+    }
+    const newStyle = document.createElement("style");
+    newStyle.innerHTML = attachments.style_css;
+    newStyle.classList.add(CSS_ELEMENT_CLASS);
+    document.body.appendChild(newStyle);
+}
+
+function onDelete()
+{
+    removeElementFromDOM(sidebarEl);
+}
+
+function removeElementFromDOM(el)
+{
+    if (el && el.parentNode && el.parentNode.removeChild) el.parentNode.removeChild(el);
+}
+
+
+};
+
+Ops.Sidebar.Sidebar.prototype = new CABLES.Op();
+CABLES.OPS["5a681c35-78ce-4cb3-9858-bc79c34c6819"]={f:Ops.Sidebar.Sidebar,objName:"Ops.Sidebar.Sidebar"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Sidebar.Button_v2
+// 
+// **************************************************************
+
+Ops.Sidebar.Button_v2 = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+// inputs
+const parentPort = op.inObject("link");
+const buttonTextPort = op.inString("Text", "Button");
+
+// outputs
+const siblingsPort = op.outObject("childs");
+const buttonPressedPort = op.outTrigger("Pressed Trigger");
+
+const inGreyOut = op.inBool("Grey Out", false);
+const inVisible = op.inBool("Visible", true);
+
+
+// vars
+const el = document.createElement("div");
+el.classList.add("sidebar__item");
+el.classList.add("sidebar--button");
+const input = document.createElement("div");
+input.classList.add("sidebar__button-input");
+el.appendChild(input);
+input.addEventListener("click", onButtonClick);
+const inputText = document.createTextNode(buttonTextPort.get());
+input.appendChild(inputText);
+op.toWorkNeedsParent("Ops.Sidebar.Sidebar");
+
+// events
+parentPort.onChange = onParentChanged;
+buttonTextPort.onChange = onButtonTextChanged;
+op.onDelete = onDelete;
+
+const greyOut = document.createElement("div");
+greyOut.classList.add("sidebar__greyout");
+el.appendChild(greyOut);
+greyOut.style.display = "none";
+
+inGreyOut.onChange = function ()
+{
+    greyOut.style.display = inGreyOut.get() ? "block" : "none";
+};
+
+inVisible.onChange = function ()
+{
+    el.style.display = inVisible.get() ? "block" : "none";
+};
+
+
+function onButtonClick()
+{
+    buttonPressedPort.trigger();
+}
+
+function onButtonTextChanged()
+{
+    const buttonText = buttonTextPort.get();
+    input.textContent = buttonText;
+    if (CABLES.UI)
+    {
+        op.setTitle("Button: " + buttonText);
+    }
+}
+
+function onParentChanged()
+{
+    const parent = parentPort.get();
+    if (parent && parent.parentElement)
+    {
+        parent.parentElement.appendChild(el);
+        siblingsPort.set(null);
+        siblingsPort.set(parent);
+    }
+    else
+    { // detach
+        if (el.parentElement)
+        {
+            el.parentElement.removeChild(el);
+        }
+    }
+}
+
+function showElement(el)
+{
+    if (el)
+    {
+        el.style.display = "block";
+    }
+}
+
+function hideElement(el)
+{
+    if (el)
+    {
+        el.style.display = "none";
+    }
+}
+
+function onDelete()
+{
+    removeElementFromDOM(el);
+}
+
+function removeElementFromDOM(el)
+{
+    if (el && el.parentNode && el.parentNode.removeChild)
+    {
+        el.parentNode.removeChild(el);
+    }
+}
+
+
+};
+
+Ops.Sidebar.Button_v2.prototype = new CABLES.Op();
+CABLES.OPS["5e9c6933-0605-4bf7-8671-a016d917f327"]={f:Ops.Sidebar.Button_v2,objName:"Ops.Sidebar.Button_v2"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.Shader.ShaderInfo
+// 
+// **************************************************************
+
+Ops.Gl.Shader.ShaderInfo = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const
+    exec = op.inTrigger("Exec"),
+    showFrag = op.inTriggerButton("Show Fragment"),
+    showVert = op.inTriggerButton("Show Vertex"),
+    showModules = op.inTriggerButton("Show Modules"),
+    showUniforms = op.inTriggerButton("Show Uniforms"),
+    showState = op.inTriggerButton("State Info"),
+    next = op.outTrigger("Next"),
+    outName = op.outString("Name"),
+    outId = op.outString("Id"),
+    outNumUniforms = op.outValue("Num Uniforms"),
+    outNumAttributes = op.outValue("Num Attributes"),
+    outAttributeNames = op.outArray("Arributes Names"),
+    outDefines = op.outArray("Num Defines");
+
+const cgl = op.patch.cgl;
+let shader = null;
+
+showFrag.onTriggered = function ()
+{
+    if (CABLES.UI && shader) CABLES.UI.MODAL.showCode("fragment shader", shader.finalShaderFrag, "GLSL");
+};
+
+showVert.onTriggered = function ()
+{
+    if (CABLES.UI && shader) CABLES.UI.MODAL.showCode("vertex shader", shader.finalShaderVert, "GLSL");
+};
+
+let doStateDump = false;
+let doUniformDump = false;
+
+showState.onTriggered = function ()
+{
+    if (!CABLES.UI || !shader) return;
+    doStateDump = true;
+};
+
+showUniforms.onTriggered = function ()
+{
+    if (!CABLES.UI || !shader) return;
+    doUniformDump = true;
+};
+
+exec.onTriggered = function ()
+{
+    if (cgl.frameStore.shadowPass) return;
+    shader = cgl.getShader();
+    next.trigger();
+
+    shader.bind();
+
+    if (!shader.getProgram()) op.setUiError("prognull", "Shader is not compiled");
+    else op.setUiError("prognull", null);
+
+    if (!shader) op.setUiError("noshader", "No Shader..");
+    else op.setUiError("noshader", null);
+
+    if (shader && shader.getProgram())
+    {
+        const activeUniforms = cgl.gl.getProgramParameter(shader.getProgram(), cgl.gl.ACTIVE_UNIFORMS);
+        outNumUniforms.set(activeUniforms);
+        outNumAttributes.set(cgl.gl.getProgramParameter(shader.getProgram(), cgl.gl.ACTIVE_ATTRIBUTES));
+
+        let i = 0;
+        const attribNames = [];
+        for (i = 0; i < cgl.gl.getProgramParameter(shader.getProgram(), cgl.gl.ACTIVE_ATTRIBUTES); i++)
+        {
+            const name = cgl.gl.getActiveAttrib(shader.getProgram(), i).name;
+            attribNames.push(name);
+        }
+        outAttributeNames.set(attribNames);
+        outDefines.set(shader.getDefines());
+        outName.set(shader.getName());
+        outId.set(shader.id);
+
+        op.setUiError("prognull", null);
+    }
+    else
+    {
+        outNumUniforms.set(0);
+        outNumAttributes.set(0);
+        outDefines.set(0);
+        outAttributeNames.set(null);
+    }
+
+    if (doUniformDump)
+    {
+        const json = [];
+        for (let i = 0; i < shader._uniforms.length; i++)
+        {
+            json.push({
+                "validLoc": shader._uniforms[i]._isValidLoc(),
+                "name": shader._uniforms[i]._name,
+                "type": shader._uniforms[i]._type,
+                "value": shader._uniforms[i]._value,
+                "structName": shader._uniforms[i]._structName,
+                "structUniformName": shader._uniforms[i]._structUniformName
+            });
+        }
+        CABLES.UI.MODAL.showCode("shader uniforms", JSON.stringify(json, false, 2), "json");
+
+        doUniformDump = false;
+    }
+
+    if (doStateDump)
+    {
+        doStateDump = false;
+        stateDump();
+    }
+};
+
+function stateDump()
+{
+    let txt = "";
+    txt += "";
+
+    txt += "defines (" + outDefines.get().length + ")\n\n";
+
+    for (let i = 0; i < outDefines.get().length; i++)
+    {
+        txt += "- ";
+        txt += outDefines.get()[i][0];
+        if (outDefines.get()[i][1])
+        {
+            txt += ": ";
+            txt += outDefines.get()[i][1];
+        }
+        txt += "\n";
+    }
+
+    txt += "\n\n";
+    txt += "texturestack (" + shader._textureStackUni.length + ")\n\n";
+
+    for (let i = 0; i < shader._textureStackUni.length; i++)
+    {
+        txt += "- ";
+        txt += shader._textureStackUni[i]._name;
+        txt += "(" + shader._textureStackUni[i].shaderType + ")\n";
+        if (shader._textureStackTexCgl[i]) txt += JSON.stringify(shader._textureStackTexCgl[i].getInfo());
+        txt += "\n";
+    }
+
+    txt += "\n\n";
+    txt += "uniforms: (" + shader._uniforms.length + ")\n\n";
+
+    for (let i = 0; i < shader._uniforms.length; i++)
+    {
+        txt += "- ";
+        txt += shader._uniforms[i]._name;
+        txt += ": ";
+        txt += shader._uniforms[i].getValue();
+
+        if (shader._uniforms[i].comment)
+        {
+            txt += " // ";
+            txt += shader._uniforms[i].comment;
+        }
+        txt += "\n";
+    }
+
+    CABLES.UI.MODAL.showCode("state info", txt);
+}
+
+showModules.onTriggered = function ()
+{
+    if (!shader) return;
+    const mods = shader.getCurrentModules();
+
+    CABLES.UI.MODAL.showCode("vertex shader", JSON.stringify(mods, false, 4), "json");
+};
+
+
+};
+
+Ops.Gl.Shader.ShaderInfo.prototype = new CABLES.Op();
+CABLES.OPS["7afaa77e-a976-4e65-8eb1-a6302b91c0d3"]={f:Ops.Gl.Shader.ShaderInfo,objName:"Ops.Gl.Shader.ShaderInfo"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.TextureEffects.CustomTextureEffectShader
+// 
+// **************************************************************
+
+Ops.Gl.TextureEffects.CustomTextureEffectShader = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const render=op.inTrigger("render");
+const inShader=op.inObject("Shader");
+const blendMode=CGL.TextureEffect.AddBlendSelect(op,"Blend Mode","normal");
+const amount=op.inValueSlider("Amount",0.25);
+const trigger=op.outTrigger("trigger");
+
+const cgl=op.patch.cgl;
+var shader=new CGL.Shader(cgl);
+
+var textureUniform=null;
+var amountUniform=null;
+
+inShader.onChange=function()
+{
+    shader=inShader.get();
+    if(!shader)return;
+
+    shader.setSource(shader.srcVert,shader.srcFrag);
+    textureUniform=new CGL.Uniform(shader,'t','tex',0);
+
+    amountUniform=new CGL.Uniform(shader,'f','amount',amount);
+};
+
+
+
+CGL.TextureEffect.setupBlending(op,shader,blendMode,amount);
+
+
+render.onTriggered=function()
+{
+    if(!shader)return;
+    if(!CGL.TextureEffect.checkOpInEffect(op)) return;
+
+    cgl.pushShader(shader);
+    cgl.currentTextureEffect.bind();
+
+    cgl.setTexture(0, cgl.currentTextureEffect.getCurrentSourceTexture().tex );
+
+    if(shader.bindTextures)shader.bindTextures();
+
+    cgl.currentTextureEffect.finish();
+    cgl.popShader();
+
+    trigger.trigger();
+};
+
+
+};
+
+Ops.Gl.TextureEffects.CustomTextureEffectShader.prototype = new CABLES.Op();
+CABLES.OPS["474d4806-ef96-4898-84f7-1d062684dfd0"]={f:Ops.Gl.TextureEffects.CustomTextureEffectShader,objName:"Ops.Gl.TextureEffects.CustomTextureEffectShader"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.Shader.CustomShader_v2
+// 
+// **************************************************************
+
+Ops.Gl.Shader.CustomShader_v2 = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const
+    render = op.inTrigger("render"),
+    fragmentShader = op.inStringEditor("Fragment Code"),
+    vertexShader = op.inStringEditor("Vertex Code"),
+    asMaterial = op.inValueBool("Use As Material", true),
+    trigger = op.outTrigger("trigger"),
+    outShader = op.outObject("Shader", null, "shader");
+
+const cgl = op.patch.cgl;
+const uniformInputs = [];
+const uniformTextures = [];
+const vectors = [];
+
+op.toWorkPortsNeedToBeLinked(render);
+
+fragmentShader.setUiAttribs({ "editorSyntax": "glsl" });
+vertexShader.setUiAttribs({ "editorSyntax": "glsl" });
+
+const shader = new CGL.Shader(cgl, "shaderMaterial");
+
+shader.setModules(["MODULE_VERTEX_POSITION", "MODULE_COLOR", "MODULE_BEGIN_FRAG"]);
+
+op.setPortGroup("Source Code", [fragmentShader, vertexShader]);
+op.setPortGroup("Options", [asMaterial]);
+
+fragmentShader.set(CGL.Shader.getDefaultFragmentShader());
+vertexShader.set(CGL.Shader.getDefaultVertexShader());
+
+fragmentShader.onChange = vertexShader.onChange = function () { needsUpdate = true; };
+
+render.onTriggered = doRender;
+
+var needsUpdate = true;
+op.onLoadedValueSet = initDataOnLoad;
+
+function initDataOnLoad(data)
+{
+    updateShader();
+    // set uniform values AFTER shader has been compiled and uniforms are extracted and uniform ports are created.
+    for (let i = 0; i < uniformInputs.length; i++)
+        for (let j = 0; j < data.portsIn.length; j++)
+            if (uniformInputs[i] && uniformInputs[i].name == data.portsIn[j].name)
+                uniformInputs[i].set(data.portsIn[j].value);
+}
+
+op.init = function ()
+{
+    updateShader();
+};
+
+function doRender()
+{
+    setVectorValues();
+    if (needsUpdate)updateShader();
+    if (asMaterial.get()) cgl.pushShader(shader);
+    trigger.trigger();
+    if (asMaterial.get()) cgl.popShader();
+}
+
+function bindTextures()
+{
+    for (let i = 0; i < uniformTextures.length; i++)
+        if (uniformTextures[i] && uniformTextures[i].get() && uniformTextures[i].get().tex)
+            cgl.setTexture(0 + i + 3, uniformTextures[i].get().tex);
+}
+
+function hasUniformInput(name)
+{
+    let i = 0;
+    for (i = 0; i < uniformInputs.length; i++) if (uniformInputs[i] && uniformInputs[i].name == name) return true;
+    for (i = 0; i < uniformTextures.length; i++) if (uniformTextures[i] && uniformTextures[i].name == name) return true;
+    return false;
+}
+
+const tempMat4 = mat4.create();
+// var lastm4;
+const uniformNameBlacklist = [
+    "modelMatrix",
+    "viewMatrix",
+    "normalMatrix",
+    "mvMatrix",
+    "projMatrix",
+    "inverseViewMatrix",
+    "camPos"
+];
+
+let countTexture = 0;
+const foundNames = [];
+
+function parseUniforms(src)
+{
+    const lblines = src.split("\n");
+    const groupUniforms = [];
+
+    for (let k = 0; k < lblines.length; k++)
+    {
+        const lines = lblines[k].split(";");
+
+        for (let i = 0; i < lines.length; i++)
+        {
+            let words = lines[i].split(" ");
+
+            for (var j = 0; j < words.length; j++) words[j] = (words[j] + "").trim();
+
+            if (words[0] === "UNI" || words[0] === "uniform")
+            {
+                let varnames = words[2];
+                if (words.length > 4) for (var j = 3; j < words.length; j++)varnames += words[j];
+
+                words = words.filter(function (el) { return el !== ""; });
+                const type = words[1];
+
+                let names = [varnames];
+                if (varnames.indexOf(",") > -1) names = varnames.split(",");
+
+                for (let l = 0; l < names.length; l++)
+                {
+                    if (uniformNameBlacklist.indexOf(names[l]) > -1) continue;
+                    const uniName = names[l].trim();
+
+                    if (type === "float")
+                    {
+                        foundNames.push(uniName);
+                        if (!hasUniformInput(uniName))
+                        {
+                            const newInput = op.inFloat(uniName, 0);
+                            newInput.uniform = new CGL.Uniform(shader, "f", uniName, newInput);
+                            uniformInputs.push(newInput);
+                            groupUniforms.push(newInput);
+                        }
+                    }
+                    else if (type === "int")
+                    {
+                        foundNames.push(uniName);
+                        if (!hasUniformInput(uniName))
+                        {
+                            const newInput = op.inInt(uniName, 0);
+                            newInput.uniform = new CGL.Uniform(shader, "i", uniName, newInput);
+                            uniformInputs.push(newInput);
+                            groupUniforms.push(newInput);
+                        }
+                    }
+                    else if (type === "bool")
+                    {
+                        foundNames.push(uniName);
+                        if (!hasUniformInput(uniName))
+                        {
+                            const newInput = op.inBool(uniName, false);
+                            newInput.uniform = new CGL.Uniform(shader, "b", uniName, newInput);
+                            uniformInputs.push(newInput);
+                            groupUniforms.push(newInput);
+                        }
+                    }
+                    else if (type === "mat4")
+                    {
+                        foundNames.push(uniName);
+                        if (!hasUniformInput(uniName))
+                        {
+                            const newInput = op.inArray(uniName, 0);
+                            newInput.uniform = new CGL.Uniform(shader, "m4", uniName, newInput);
+                            uniformInputs.push(newInput);
+                            groupUniforms.push(newInput);
+
+                            const vec = {
+                                "name": uniName,
+                                "num": 16,
+                                "port": newInput,
+                                "uni": newInput.uniform,
+                                "changed": false
+                            };
+                            newInput.onChange = function () { this.changed = true; }.bind(vec);
+
+                            vectors.push(vec);
+                        }
+                    }
+                    else if (type === "sampler2D")
+                    {
+                        foundNames.push(uniName);
+                        if (!hasUniformInput(uniName))
+                        {
+                            const newInputTex = op.inObject(uniName);
+                            newInputTex.uniform = new CGL.Uniform(shader, "t", uniName, 3 + uniformTextures.length);
+                            uniformTextures.push(newInputTex);
+                            groupUniforms.push(newInputTex);
+                            newInputTex.set(CGL.Texture.getTempTexture(cgl));
+                            newInputTex.on("change", (v, p) =>
+                            {
+                                if (!v)p.set(CGL.Texture.getTempTexture(cgl));
+                            });
+                            countTexture++;
+                        }
+                    }
+                    else if (type === "vec3" || type === "vec2" || type === "vec4")
+                    {
+                        let num = 2;
+                        if (type === "vec4")num = 4;
+                        if (type === "vec3")num = 3;
+                        foundNames.push(uniName + " X");
+                        foundNames.push(uniName + " Y");
+                        if (num > 2)foundNames.push(uniName + " Z");
+                        if (num > 3)foundNames.push(uniName + " W");
+
+                        if (!hasUniformInput(uniName + " X"))
+                        {
+                            const group = [];
+                            const vec = {
+                                "name": uniName,
+                                "num": num,
+                                "changed": false,
+                            };
+                            vectors.push(vec);
+                            initVectorUniform(vec);
+
+                            const newInputX = op.inFloat(uniName + " X", 0);
+                            newInputX.onChange = function () { this.changed = true; }.bind(vec);
+                            uniformInputs.push(newInputX);
+                            group.push(newInputX);
+                            vec.x = newInputX;
+
+                            const newInputY = op.inFloat(uniName + " Y", 0);
+                            newInputY.onChange = function () { this.changed = true; }.bind(vec);
+                            uniformInputs.push(newInputY);
+                            group.push(newInputY);
+                            vec.y = newInputY;
+
+                            if (num > 2)
+                            {
+                                const newInputZ = op.inFloat(uniName + " Z", 0);
+                                newInputZ.onChange = function () { this.changed = true; }.bind(vec);
+                                uniformInputs.push(newInputZ);
+                                group.push(newInputZ);
+                                vec.z = newInputZ;
+                            }
+                            if (num > 3)
+                            {
+                                const newInputW = op.inFloat(uniName + " W", 0);
+                                newInputW.onChange = function () { this.changed = true; }.bind(vec);
+                                uniformInputs.push(newInputW);
+                                group.push(newInputW);
+                                vec.w = newInputW;
+                            }
+
+                            op.setPortGroup(uniName, group);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    op.setPortGroup("uniforms", groupUniforms);
+}
+
+function updateShader()
+{
+    if (!shader) return;
+
+    shader.bindTextures = bindTextures.bind(this);
+    shader.setSource(vertexShader.get(), fragmentShader.get());
+
+    if (cgl.glVersion == 1)
+    {
+        cgl.gl.getExtension("OES_standard_derivatives");
+        // cgl.gl.getExtension('OES_texture_float');
+        // cgl.gl.getExtension('OES_texture_float_linear');
+        // cgl.gl.getExtension('OES_texture_half_float');
+        // cgl.gl.getExtension('OES_texture_half_float_linear');
+
+        shader.enableExtension("GL_OES_standard_derivatives");
+    // shader.enableExtension("GL_OES_texture_float");
+    // shader.enableExtension("GL_OES_texture_float_linear");
+    // shader.enableExtension("GL_OES_texture_half_float");
+    // shader.enableExtension("GL_OES_texture_half_float_linear");
+    }
+
+    countTexture = 0;
+    foundNames.length = 0;
+
+    parseUniforms(vertexShader.get());
+    parseUniforms(fragmentShader.get());
+
+    for (var j = 0; j < uniformTextures.length; j++)
+        for (var i = 0; i < foundNames.length; i++)
+            if (uniformTextures[j] && foundNames.indexOf(uniformTextures[j].name) == -1)
+            {
+                uniformTextures[j].remove();
+                uniformTextures[j] = null;
+            }
+
+    for (var j = 0; j < uniformInputs.length; j++)
+        for (var i = 0; i < foundNames.length; i++)
+            if (uniformInputs[j] && foundNames.indexOf(uniformInputs[j].name) == -1)
+            {
+                uniformInputs[j].remove();
+                uniformInputs[j] = null;
+            }
+
+    for (var j = 0; j < vectors.length; j++)
+    {
+        initVectorUniform(vectors[j]);
+        vectors[j].changed = true;
+    }
+
+    for (i = 0; i < uniformInputs.length; i++)
+        if (uniformInputs[i] && uniformInputs[i].uniform)uniformInputs[i].uniform.needsUpdate = true;
+
+    shader.compile();
+
+    if (CABLES.UI) gui.opParams.show(op);
+
+    outShader.set(null);
+    outShader.set(shader);
+    needsUpdate = false;
+}
+
+function initVectorUniform(vec)
+{
+    if (vec.num == 2) vec.uni = new CGL.Uniform(shader, "2f", vec.name, [0, 0]);
+    else if (vec.num == 3) vec.uni = new CGL.Uniform(shader, "3f", vec.name, [0, 0, 0]);
+    else if (vec.num == 4) vec.uni = new CGL.Uniform(shader, "4f", vec.name, [0, 0, 0, 0]);
+}
+
+function setVectorValues()
+{
+    for (let i = 0; i < vectors.length; i++)
+    {
+        const v = vectors[i];
+        if (v.changed)
+        {
+            if (v.num === 2) v.uni.setValue([v.x.get(), v.y.get()]);
+            else if (v.num === 3) v.uni.setValue([v.x.get(), v.y.get(), v.z.get()]);
+            else if (v.num === 4) v.uni.setValue([v.x.get(), v.y.get(), v.z.get(), v.w.get()]);
+
+            else if (v.num > 4)
+            {
+                v.uni.setValue(v.port.get());
+                // console.log(v.port.get());
+            }
+
+            v.changed = false;
+        }
+    }
+}
+
+
+};
+
+Ops.Gl.Shader.CustomShader_v2.prototype = new CABLES.Op();
+CABLES.OPS["a165fc89-a35b-4d39-8930-7345b098bd9d"]={f:Ops.Gl.Shader.CustomShader_v2,objName:"Ops.Gl.Shader.CustomShader_v2"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Value.Number
+// 
+// **************************************************************
+
+Ops.Value.Number = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const v = op.inValueFloat("value");
+const result = op.outValue("result");
+
+v.onChange = exec;
+
+function exec()
+{
+    result.set(v.get());
+}
+
+
+};
+
+Ops.Value.Number.prototype = new CABLES.Op();
+CABLES.OPS["8fb2bb5d-665a-4d0a-8079-12710ae453be"]={f:Ops.Value.Number,objName:"Ops.Value.Number"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Sidebar.Slider_v3
+// 
+// **************************************************************
+
+Ops.Sidebar.Slider_v3 = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+// constants
+const STEP_DEFAULT = 0.00001;
+
+// inputs
+const parentPort = op.inObject("link");
+const labelPort = op.inString("Text", "Slider");
+const minPort = op.inValue("Min", 0);
+const maxPort = op.inValue("Max", 1);
+const stepPort = op.inValue("Step", STEP_DEFAULT);
+
+const inGreyOut = op.inBool("Grey Out", false);
+const inVisible = op.inBool("Visible", true);
+
+const inputValuePort = op.inValue("Input", 0.5);
+const setDefaultValueButtonPort = op.inTriggerButton("Set Default");
+const reset = op.inTriggerButton("Reset");
+
+const defaultValuePort = op.inValue("Default", 0.5);
+defaultValuePort.setUiAttribs({ "hidePort": true, "greyout": true });
+
+// outputs
+const siblingsPort = op.outObject("childs");
+const valuePort = op.outValue("Result", defaultValuePort.get());
+
+op.toWorkNeedsParent("Ops.Sidebar.Sidebar");
+op.setPortGroup("Range", [minPort, maxPort, stepPort]);
+op.setPortGroup("Visibility", [inGreyOut, inVisible]);
+
+// vars
+const el = document.createElement("div");
+el.addEventListener("dblclick", function ()
+{
+    valuePort.set(parseFloat(defaultValuePort.get()));
+    inputValuePort.set(parseFloat(defaultValuePort.get()));
+});
+
+el.classList.add("sidebar__item");
+el.classList.add("sidebar__slider");
+el.classList.add("sidebar__reloadable");
+
+const label = document.createElement("div");
+label.classList.add("sidebar__item-label");
+
+const greyOut = document.createElement("div");
+greyOut.classList.add("sidebar__greyout");
+el.appendChild(greyOut);
+greyOut.style.display = "none";
+
+const labelText = document.createTextNode(labelPort.get());
+label.appendChild(labelText);
+el.appendChild(label);
+
+const value = document.createElement("input");
+value.value = defaultValuePort.get();
+value.classList.add("sidebar__text-input-input");
+// value.setAttribute('type', 'number'); /* not possible to use '.' instead of ',' as separator on German computer, so not usable... */
+value.setAttribute("type", "text");
+// value.setAttribute('lang', 'en-US'); // force '.' as decimal separator
+// value.setAttribute('pattern', '[0-9]+([\.][0-9]+)?'); // only allow '.' as separator
+// value.setAttribute('step', 'any'); /* we cannot use the slider step, as it restricts valid numbers to be entered */
+// value.setAttribute('formnovalidate', '');
+value.oninput = onTextInputChanged;
+el.appendChild(value);
+
+const inputWrapper = document.createElement("div");
+inputWrapper.classList.add("sidebar__slider-input-wrapper");
+el.appendChild(inputWrapper);
+
+const activeTrack = document.createElement("div");
+activeTrack.classList.add("sidebar__slider-input-active-track");
+inputWrapper.appendChild(activeTrack);
+const input = document.createElement("input");
+input.classList.add("sidebar__slider-input");
+input.setAttribute("min", minPort.get());
+input.setAttribute("max", maxPort.get());
+input.setAttribute("type", "range");
+input.setAttribute("step", stepPort.get());
+input.setAttribute("value", defaultValuePort.get());
+input.style.display = "block"; /* needed because offsetWidth returns 0 otherwise */
+inputWrapper.appendChild(input);
+
+updateActiveTrack();
+input.addEventListener("input", onSliderInput);
+
+// events
+parentPort.onChange = onParentChanged;
+labelPort.onChange = onLabelTextChanged;
+inputValuePort.onChange = onInputValuePortChanged;
+defaultValuePort.onChange = onDefaultValueChanged;
+setDefaultValueButtonPort.onTriggered = onSetDefaultValueButtonPress;
+minPort.onChange = onMinPortChange;
+maxPort.onChange = onMaxPortChange;
+stepPort.onChange = stepPortChanged;
+op.onDelete = onDelete;
+
+// op.onLoadedValueSet=function()
+op.onLoaded = op.onInit = function ()
+{
+    if (op.patch.config.sidebar)
+    {
+        op.patch.config.sidebar[labelPort.get()];
+        valuePort.set(op.patch.config.sidebar[labelPort.get()]);
+    }
+    else
+    {
+        valuePort.set(parseFloat(defaultValuePort.get()));
+        inputValuePort.set(parseFloat(defaultValuePort.get()));
+        // onInputValuePortChanged();
+    }
+};
+
+reset.onTriggered = function ()
+{
+    const newValue = parseFloat(defaultValuePort.get());
+    valuePort.set(newValue);
+    value.value = newValue;
+    input.value = newValue;
+    inputValuePort.set(newValue);
+    updateActiveTrack();
+};
+
+inGreyOut.onChange = function ()
+{
+    greyOut.style.display = inGreyOut.get() ? "block" : "none";
+};
+
+inVisible.onChange = function ()
+{
+    el.style.display = inVisible.get() ? "block" : "none";
+};
+
+function onTextInputChanged(ev)
+{
+    let newValue = parseFloat(ev.target.value);
+    if (isNaN(newValue)) newValue = 0;
+    const min = minPort.get();
+    const max = maxPort.get();
+    if (newValue < min) { newValue = min; }
+    else if (newValue > max) { newValue = max; }
+    // input.value = newValue;
+    valuePort.set(newValue);
+    updateActiveTrack();
+    inputValuePort.set(newValue);
+    if (op.isCurrentUiOp()) gui.opParams.show(op); /* update DOM */
+}
+
+function onInputValuePortChanged()
+{
+    let newValue = parseFloat(inputValuePort.get());
+    const minValue = minPort.get();
+    const maxValue = maxPort.get();
+    if (newValue > maxValue) { newValue = maxValue; }
+    else if (newValue < minValue) { newValue = minValue; }
+    value.value = newValue;
+    input.value = newValue;
+    valuePort.set(newValue);
+    updateActiveTrack();
+}
+
+function onSetDefaultValueButtonPress()
+{
+    let newValue = parseFloat(inputValuePort.get());
+    const minValue = minPort.get();
+    const maxValue = maxPort.get();
+    if (newValue > maxValue) { newValue = maxValue; }
+    else if (newValue < minValue) { newValue = minValue; }
+    value.value = newValue;
+    input.value = newValue;
+    valuePort.set(newValue);
+    defaultValuePort.set(newValue);
+    if (op.isCurrentUiOp()) gui.opParams.show(op); /* update DOM */
+
+    updateActiveTrack();
+}
+
+function onSliderInput(ev)
+{
+    ev.preventDefault();
+    ev.stopPropagation();
+    value.value = ev.target.value;
+    const inputFloat = parseFloat(ev.target.value);
+    valuePort.set(inputFloat);
+    inputValuePort.set(inputFloat);
+    if (op.isCurrentUiOp()) gui.opParams.show(op); /* update DOM */
+
+    updateActiveTrack();
+    return false;
+}
+
+function stepPortChanged()
+{
+    const step = stepPort.get();
+    input.setAttribute("step", step);
+    updateActiveTrack();
+}
+
+function updateActiveTrack(val)
+{
+    let valueToUse = parseFloat(input.value);
+    if (typeof val !== "undefined") valueToUse = val;
+    let availableWidth = input.offsetWidth; /* this returns 0 at the beginning... */
+    if (availableWidth === 0) { availableWidth = 206; }
+    const trackWidth = CABLES.map(
+        valueToUse,
+        parseFloat(input.min),
+        parseFloat(input.max),
+        0,
+        availableWidth - 16 /* subtract slider thumb width */
+    );
+    // activeTrack.style.width = 'calc(' + percentage + '%' + ' - 9px)';
+    activeTrack.style.width = trackWidth + "px";
+}
+
+function onMinPortChange()
+{
+    const min = minPort.get();
+    input.setAttribute("min", min);
+    updateActiveTrack();
+}
+
+function onMaxPortChange()
+{
+    const max = maxPort.get();
+    input.setAttribute("max", max);
+    updateActiveTrack();
+}
+
+function onDefaultValueChanged()
+{
+    const defaultValue = defaultValuePort.get();
+    valuePort.set(parseFloat(defaultValue));
+    onMinPortChange();
+    onMaxPortChange();
+    input.value = defaultValue;
+    value.value = defaultValue;
+
+    updateActiveTrack(defaultValue); // needs to be passed as argument, is this async?
+}
+
+function onLabelTextChanged()
+{
+    const labelText = labelPort.get();
+    label.textContent = labelText;
+    if (CABLES.UI) op.setTitle("Slider: " + labelText);
+}
+
+function onParentChanged()
+{
+    const parent = parentPort.get();
+    if (parent && parent.parentElement)
+    {
+        parent.parentElement.appendChild(el);
+        siblingsPort.set(null);
+        siblingsPort.set(parent);
+    }
+    else if (el.parentElement) el.parentElement.removeChild(el);
+}
+
+function showElement(el)
+{
+    if (el)el.style.display = "block";
+}
+
+function hideElement(el)
+{
+    if (el)el.style.display = "none";
+}
+
+function onDelete()
+{
+    removeElementFromDOM(el);
+}
+
+function removeElementFromDOM(el)
+{
+    if (el && el.parentNode && el.parentNode.removeChild) el.parentNode.removeChild(el);
+}
+
+
+};
+
+Ops.Sidebar.Slider_v3.prototype = new CABLES.Op();
+CABLES.OPS["74730122-5cba-4d0d-b610-df334ec6220a"]={f:Ops.Sidebar.Slider_v3,objName:"Ops.Sidebar.Slider_v3"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.TextureEffects.ImageCompose
+// 
+// **************************************************************
+
+Ops.Gl.TextureEffects.ImageCompose = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const render = op.inTrigger("render");
+const useVPSize = op.inBool("use viewport size");
+const width = op.inValueInt("width");
+const height = op.inValueInt("height");
+
+const tfilter = op.inSwitch("filter", ["nearest", "linear", "mipmap"], "linear");
+const twrap = op.inValueSelect("wrap", ["clamp to edge", "repeat", "mirrored repeat"]);
+const fpTexture = op.inValueBool("HDR");
+
+const trigger = op.outTrigger("trigger");
+const texOut = op.outTexture("texture_out");
+
+const bgAlpha = op.inValueSlider("Background Alpha", 0);
+const outRatio = op.outValue("Aspect Ratio");
+
+op.setPortGroup("Texture Size", [useVPSize, width, height]);
+op.setPortGroup("Texture Settings", [twrap, tfilter, fpTexture]);
+
+const cgl = op.patch.cgl;
+texOut.set(CGL.Texture.getEmptyTexture(cgl));
+let effect = null;
+let tex = null;
+
+let w = 8, h = 8;
+const prevViewPort = [0, 0, 0, 0];
+let reInitEffect = true;
+
+const bgFrag = ""
+    .endl() + "uniform float a;"
+    .endl() + "void main()"
+    .endl() + "{"
+    .endl() + "   outColor= vec4(0.0,0.0,0.0,a);"
+    .endl() + "}";
+const bgShader = new CGL.Shader(cgl, "imgcompose bg");
+bgShader.setSource(bgShader.getDefaultVertexShader(), bgFrag);
+const uniBgAlpha = new CGL.Uniform(bgShader, "f", "a", bgAlpha);
+
+let selectedFilter = CGL.Texture.FILTER_LINEAR;
+let selectedWrap = CGL.Texture.WRAP_CLAMP_TO_EDGE;
+
+function initEffect()
+{
+    if (effect)effect.delete();
+    if (tex)tex.delete();
+
+    effect = new CGL.TextureEffect(cgl, { "isFloatingPointTexture": fpTexture.get() });
+
+    tex = new CGL.Texture(cgl,
+        {
+            "name": "image compose",
+            "isFloatingPointTexture": fpTexture.get(),
+            "filter": selectedFilter,
+            "wrap": selectedWrap,
+            "width": Math.ceil(width.get()),
+            "height": Math.ceil(height.get()),
+        });
+
+    effect.setSourceTexture(tex);
+    texOut.set(CGL.Texture.getEmptyTexture(cgl));
+    // texOut.set(effect.getCurrentSourceTexture());
+
+    // texOut.set(effect.getCurrentSourceTexture());
+
+    reInitEffect = false;
+
+    // op.log("reinit effect");
+    // tex.printInfo();
+}
+
+fpTexture.onChange = function ()
+{
+    reInitEffect = true;
+
+    // var e1=cgl.gl.getExtension('EXT_color_buffer_float');
+    // var e2=cgl.gl.getExtension('EXT_float_blend');
+};
+
+function updateResolution()
+{
+    if (!effect)initEffect();
+
+    if (useVPSize.get())
+    {
+        w = cgl.getViewPort()[2];
+        h = cgl.getViewPort()[3];
+    }
+    else
+    {
+        w = Math.ceil(width.get());
+        h = Math.ceil(height.get());
+    }
+
+    if ((w != tex.width || h != tex.height) && (w !== 0 && h !== 0))
+    {
+        height.set(h);
+        width.set(w);
+        tex.setSize(w, h);
+        outRatio.set(w / h);
+        effect.setSourceTexture(tex);
+        // texOut.set(null);
+        texOut.set(CGL.Texture.getEmptyTexture(cgl));
+        texOut.set(tex);
+    }
+
+    if (texOut.get() && selectedFilter != CGL.Texture.FILTER_NEAREST)
+    {
+        if (!texOut.get().isPowerOfTwo()) op.setUiError("hintnpot", "texture dimensions not power of two! - texture filtering when scaling will not work on ios devices.", 0);
+        else op.setUiError("hintnpot", null, 0);
+    }
+    else op.setUiError("hintnpot", null, 0);
+
+    // if (texOut.get())
+    //     if (!texOut.get().isPowerOfTwo())
+    //     {
+    //         if (!op.uiAttribs.hint)
+    //             op.uiAttr(
+    //                 {
+    //                     "hint": "texture dimensions not power of two! - texture filtering will not work.",
+    //                     "warning": null
+    //                 });
+    //     }
+    //     else
+    //     if (op.uiAttribs.hint)
+    //     {
+    //         op.uiAttr({ "hint": null, "warning": null }); // todo only when needed...
+    //     }
+}
+
+function updateSizePorts()
+{
+    if (useVPSize.get())
+    {
+        width.setUiAttribs({ "greyout": true });
+        height.setUiAttribs({ "greyout": true });
+    }
+    else
+    {
+        width.setUiAttribs({ "greyout": false });
+        height.setUiAttribs({ "greyout": false });
+    }
+}
+
+useVPSize.onChange = function ()
+{
+    updateSizePorts();
+    if (useVPSize.get())
+    {
+        width.onChange = null;
+        height.onChange = null;
+    }
+    else
+    {
+        width.onChange = updateResolution;
+        height.onChange = updateResolution;
+    }
+    updateResolution();
+};
+
+op.preRender = function ()
+{
+    doRender();
+    bgShader.bind();
+};
+
+var doRender = function ()
+{
+    if (!effect || reInitEffect)
+    {
+        initEffect();
+    }
+    const vp = cgl.getViewPort();
+    prevViewPort[0] = vp[0];
+    prevViewPort[1] = vp[1];
+    prevViewPort[2] = vp[2];
+    prevViewPort[3] = vp[3];
+
+    cgl.gl.blendFunc(cgl.gl.SRC_ALPHA, cgl.gl.ONE_MINUS_SRC_ALPHA);
+
+    updateResolution();
+
+    cgl.currentTextureEffect = effect;
+    effect.setSourceTexture(tex);
+
+    effect.startEffect();
+
+    // render background color...
+    cgl.pushShader(bgShader);
+    cgl.currentTextureEffect.bind();
+    cgl.setTexture(0, cgl.currentTextureEffect.getCurrentSourceTexture().tex);
+    cgl.currentTextureEffect.finish();
+    cgl.popShader();
+
+    trigger.trigger();
+
+    texOut.set(effect.getCurrentSourceTexture());
+    // texOut.set(effect.getCurrentTargetTexture());
+
+    // if(effect.getCurrentSourceTexture.filter==CGL.Texture.FILTER_MIPMAP)
+    // {
+    //         this._cgl.gl.bindTexture(this._cgl.gl.TEXTURE_2D, effect.getCurrentSourceTexture.tex);
+    //         effect.getCurrentSourceTexture.updateMipMap();
+    //     // else
+    //     // {
+    //     //     this._cgl.gl.bindTexture(this._cgl.gl.TEXTURE_2D, this._textureSource.tex);;
+    //     //     this._textureSource.updateMipMap();
+    //     // }
+
+    //     this._cgl.gl.bindTexture(this._cgl.gl.TEXTURE_2D, null);
+    // }
+
+    effect.endEffect();
+
+    cgl.setViewPort(prevViewPort[0], prevViewPort[1], prevViewPort[2], prevViewPort[3]);
+
+    cgl.gl.blendFunc(cgl.gl.SRC_ALPHA, cgl.gl.ONE_MINUS_SRC_ALPHA);
+
+    cgl.currentTextureEffect = null;
+};
+
+function onWrapChange()
+{
+    if (twrap.get() == "repeat") selectedWrap = CGL.Texture.WRAP_REPEAT;
+    if (twrap.get() == "mirrored repeat") selectedWrap = CGL.Texture.WRAP_MIRRORED_REPEAT;
+    if (twrap.get() == "clamp to edge") selectedWrap = CGL.Texture.WRAP_CLAMP_TO_EDGE;
+
+    reInitEffect = true;
+    updateResolution();
+}
+
+twrap.set("repeat");
+twrap.onChange = onWrapChange;
+
+function onFilterChange()
+{
+    if (tfilter.get() == "nearest") selectedFilter = CGL.Texture.FILTER_NEAREST;
+    if (tfilter.get() == "linear") selectedFilter = CGL.Texture.FILTER_LINEAR;
+    if (tfilter.get() == "mipmap") selectedFilter = CGL.Texture.FILTER_MIPMAP;
+
+    reInitEffect = true;
+    updateResolution();
+    // effect.setSourceTexture(tex);
+    // updateResolution();
+}
+
+tfilter.set("linear");
+tfilter.onChange = onFilterChange;
+
+useVPSize.set(true);
+render.onTriggered = doRender;
+op.preRender = doRender;
+
+width.set(640);
+height.set(360);
+onFilterChange();
+onWrapChange();
+updateSizePorts();
+
+
+};
+
+Ops.Gl.TextureEffects.ImageCompose.prototype = new CABLES.Op();
+CABLES.OPS["5c04608d-1e42-4e36-be00-1be4a81fc309"]={f:Ops.Gl.TextureEffects.ImageCompose,objName:"Ops.Gl.TextureEffects.ImageCompose"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.TextureEffects.Blur
+// 
+// **************************************************************
+
+Ops.Gl.TextureEffects.Blur = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={blur_frag:"IN vec2 texCoord;\nUNI sampler2D tex;\nUNI float dirX;\nUNI float dirY;\nUNI float amount;\n\n#ifdef HAS_MASK\n    UNI sampler2D imageMask;\n#endif\n\nfloat random(vec3 scale, float seed)\n{\n    return fract(sin(dot(gl_FragCoord.xyz + seed, scale)) * 43758.5453 + seed);\n}\n\nvoid main()\n{\n    vec4 color = vec4(0.0);\n    float total = 0.0;\n\n    float am=amount;\n    #ifdef HAS_MASK\n        am=amount*texture(imageMask,texCoord).r;\n        if(am<=0.02)\n        {\n            outColor=texture(tex, texCoord);\n            return;\n        }\n    #endif\n\n    vec2 delta=vec2(dirX*am*0.01,dirY*am*0.01);\n\n\n    float offset = random(vec3(12.9898, 78.233, 151.7182), 0.0);\n\n    #ifdef MOBILE\n        offset = 0.1;\n    #endif\n\n    #if defined(FASTBLUR) && !defined(MOBILE)\n        const float range=5.0;\n    #else\n        const float range=20.0;\n    #endif\n\n    for (float t = -range; t <= range; t+=1.0)\n    {\n        float percent = (t + offset - 0.5) / range;\n        float weight = 1.0 - abs(percent);\n        vec4 smpl = texture(tex, texCoord + delta * percent);\n\n        smpl.rgb *= smpl.a;\n\n        color += smpl * weight;\n        total += weight;\n    }\n\n    outColor= color / total;\n\n    outColor.rgb /= outColor.a + 0.00001;\n\n\n\n}\n",};
+const render=op.inTrigger('render');
+const trigger=op.outTrigger('trigger');
+const amount=op.inValueFloat("amount");
+const direction=op.inSwitch("direction",['both','vertical','horizontal'],'both');
+const fast=op.inValueBool("Fast",true);
+const cgl=op.patch.cgl;
+
+amount.set(10);
+
+var shader=new CGL.Shader(cgl);
+
+shader.define("FASTBLUR");
+
+fast.onChange=function()
+{
+    if(fast.get()) shader.define("FASTBLUR");
+    else shader.removeDefine("FASTBLUR");
+};
+
+shader.setSource(shader.getDefaultVertexShader(),attachments.blur_frag);
+var textureUniform=new CGL.Uniform(shader,'t','tex',0);
+
+var uniDirX=new CGL.Uniform(shader,'f','dirX',0);
+var uniDirY=new CGL.Uniform(shader,'f','dirY',0);
+
+var uniWidth=new CGL.Uniform(shader,'f','width',0);
+var uniHeight=new CGL.Uniform(shader,'f','height',0);
+
+var uniAmount=new CGL.Uniform(shader,'f','amount',amount.get());
+amount.onChange=function(){ uniAmount.setValue(amount.get()); };
+
+var textureAlpha=new CGL.Uniform(shader,'t','imageMask',1);
+
+var showingError = false;
+
+function fullScreenBlurWarning ()
+{
+    if(cgl.currentTextureEffect.getCurrentSourceTexture().width == cgl.canvasWidth &&
+        cgl.currentTextureEffect.getCurrentSourceTexture().height == cgl.canvasHeight)
+    {
+        op.setUiError('warning','Full screen blurs are slow! Try reducing the resolution to 1/2 or a 1/4',0);
+    }
+    else
+    {
+        op.setUiError('warning',null);
+    }
+};
+
+var dir=0;
+direction.onChange=function()
+{
+    if(direction.get()=='both')dir=0;
+    if(direction.get()=='horizontal')dir=1;
+    if(direction.get()=='vertical')dir=2;
+};
+
+var mask=op.inTexture("mask");
+
+mask.onChange=function()
+{
+    if(mask.get() && mask.get().tex) shader.define('HAS_MASK');
+        else shader.removeDefine('HAS_MASK');
+};
+
+render.onTriggered=function()
+{
+    if(!CGL.TextureEffect.checkOpInEffect(op)) return;
+
+    cgl.pushShader(shader);
+
+    uniWidth.setValue(cgl.currentTextureEffect.getCurrentSourceTexture().width);
+    uniHeight.setValue(cgl.currentTextureEffect.getCurrentSourceTexture().height);
+
+    fullScreenBlurWarning();
+
+    // first pass
+    if(dir===0 || dir==2)
+    {
+
+        cgl.currentTextureEffect.bind();
+        cgl.setTexture(0, cgl.currentTextureEffect.getCurrentSourceTexture().tex );
+
+
+        if(mask.get() && mask.get().tex)
+        {
+            cgl.setTexture(1, mask.get().tex );
+            // cgl.gl.bindTexture(cgl.gl.TEXTURE_2D, mask.get().tex );
+        }
+
+
+        uniDirX.setValue(0.0);
+        uniDirY.setValue(1.0);
+
+        cgl.currentTextureEffect.finish();
+    }
+
+    // second pass
+    if(dir===0 || dir==1)
+    {
+
+        cgl.currentTextureEffect.bind();
+        cgl.setTexture(0, cgl.currentTextureEffect.getCurrentSourceTexture().tex );
+
+
+        if(mask.get() && mask.get().tex)
+        {
+            cgl.setTexture(1, mask.get().tex );
+            // cgl.gl.bindTexture(cgl.gl.TEXTURE_2D, mask.get().tex );
+        }
+
+        uniDirX.setValue(1.0);
+        uniDirY.setValue(0.0);
+
+        cgl.currentTextureEffect.finish();
+    }
+
+    cgl.popShader();
+    trigger.trigger();
+};
+
+
+
+
+
+};
+
+Ops.Gl.TextureEffects.Blur.prototype = new CABLES.Op();
+CABLES.OPS["54f26f53-f637-44c1-9bfb-a2f2b722e998"]={f:Ops.Gl.TextureEffects.Blur,objName:"Ops.Gl.TextureEffects.Blur"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.TextureEffects.DrawImage_v2
+// 
+// **************************************************************
+
+Ops.Gl.TextureEffects.DrawImage_v2 = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={drawimage_frag:"#ifdef HAS_TEXTURES\n    IN vec2 texCoord;\n    UNI sampler2D tex;\n    UNI sampler2D image;\n#endif\n\nIN mat3 transform;\nUNI float rotate;\n\n{{CGL.BLENDMODES}}\n\n#ifdef HAS_TEXTUREALPHA\n   UNI sampler2D imageAlpha;\n#endif\n\nUNI float amount;\n\n#ifdef ASPECT_RATIO\n    UNI float aspectTex;\n    UNI float aspectPos;\n#endif\n\nvoid main()\n{\n    vec4 blendRGBA=vec4(0.0,0.0,0.0,1.0);\n    #ifdef HAS_TEXTURES\n        vec2 tc=texCoord;\n\n        #ifdef TEX_FLIP_X\n            tc.x=1.0-tc.x;\n        #endif\n        #ifdef TEX_FLIP_Y\n            tc.y=1.0-tc.y;\n        #endif\n\n        #ifdef ASPECT_RATIO\n            #ifdef ASPECT_AXIS_X\n                tc.y=(1.0-aspectPos)-(((1.0-aspectPos)-tc.y)*aspectTex);\n            #endif\n            #ifdef ASPECT_AXIS_Y\n                tc.x=(1.0-aspectPos)-(((1.0-aspectPos)-tc.x)/aspectTex);\n            #endif\n        #endif\n\n        #ifdef TEX_TRANSFORM\n            vec3 coordinates=vec3(tc.x, tc.y,1.0);\n            tc=(transform * coordinates ).xy;\n        #endif\n\n        blendRGBA=texture(image,tc);\n\n        vec3 blend=blendRGBA.rgb;\n        vec4 baseRGBA=texture(tex,texCoord);\n        vec3 base=baseRGBA.rgb;\n        vec3 colNew=_blend(base,blend);\n\n        #ifdef REMOVE_ALPHA_SRC\n            blendRGBA.a=1.0;\n        #endif\n\n        #ifdef HAS_TEXTUREALPHA\n            vec4 colImgAlpha=texture(imageAlpha,tc);\n            float colImgAlphaAlpha=colImgAlpha.a;\n\n            #ifdef ALPHA_FROM_LUMINANCE\n                vec3 gray = vec3(dot(vec3(0.2126,0.7152,0.0722), colImgAlpha.rgb ));\n                colImgAlphaAlpha=(gray.r+gray.g+gray.b)/3.0;\n            #endif\n\n            #ifdef ALPHA_FROM_INV_UMINANCE\n                vec3 gray = vec3(dot(vec3(0.2126,0.7152,0.0722), colImgAlpha.rgb ));\n                colImgAlphaAlpha=1.0-(gray.r+gray.g+gray.b)/3.0;\n            #endif\n\n            #ifdef INVERT_ALPHA\n            colImgAlphaAlpha=clamp(colImgAlphaAlpha,0.0,1.0);\n            colImgAlphaAlpha=1.0-colImgAlphaAlpha;\n            #endif\n\n            blendRGBA.a=colImgAlphaAlpha*blendRGBA.a;\n        #endif\n    #endif\n\n    float am=amount;\n\n    #ifdef CLIP_REPEAT\n        if(tc.y>1.0 || tc.y<0.0 || tc.x>1.0 || tc.x<0.0)\n        {\n            // colNew.rgb=vec3(0.0);\n            am=0.0;\n        }\n    #endif\n\n    #ifdef ASPECT_RATIO\n        #ifdef ASPECT_CROP\n            if(tc.y>1.0 || tc.y<0.0 || tc.x>1.0 || tc.x<0.0) colNew.rgb=base.rgb;//vec3(0.0);\n        #endif\n    #endif\n\n\n\n    blendRGBA.rgb=mix( colNew, base ,1.0-blendRGBA.a*am);\n    blendRGBA.a=1.0;\n\n    outColor= blendRGBA;\n\n}",drawimage_vert:"IN vec3 vPosition;\nIN vec2 attrTexCoord;\nIN vec3 attrVertNormal;\n\nUNI mat4 projMatrix;\nUNI mat4 mvMatrix;\n\nUNI float posX;\nUNI float posY;\nUNI float scaleX;\nUNI float scaleY;\nUNI float rotate;\n\nOUT vec2 texCoord;\nOUT vec3 norm;\nOUT mat3 transform;\n\nvoid main()\n{\n   texCoord=attrTexCoord;\n   norm=attrVertNormal;\n\n   #ifdef TEX_TRANSFORM\n        vec3 coordinates=vec3(attrTexCoord.x, attrTexCoord.y,1.0);\n        float angle = radians( rotate );\n        vec2 scale= vec2(scaleX,scaleY);\n        vec2 translate= vec2(posX,posY);\n\n        transform = mat3(   scale.x * cos( angle ), scale.x * sin( angle ), 0.0,\n            - scale.y * sin( angle ), scale.y * cos( angle ), 0.0,\n            - 0.5 * scale.x * cos( angle ) + 0.5 * scale.y * sin( angle ) - 0.5 * translate.x*2.0 + 0.5,  - 0.5 * scale.x * sin( angle ) - 0.5 * scale.y * cos( angle ) - 0.5 * translate.y*2.0 + 0.5, 1.0);\n   #endif\n\n   gl_Position = projMatrix * mvMatrix * vec4(vPosition,  1.0);\n}\n",};
+var render=op.inTrigger('render');
+var blendMode=CGL.TextureEffect.AddBlendSelect(op,"blendMode");
+var amount=op.inValueSlider("amount",1);
+
+var image=op.inTexture("image");
+var removeAlphaSrc=op.inValueBool("removeAlphaSrc",false);
+
+var imageAlpha=op.inTexture("imageAlpha");
+var alphaSrc=op.inValueSelect("alphaSrc",['alpha channel','luminance','luminance inv']);
+var invAlphaChannel=op.inValueBool("invert alpha channel");
+
+const inAspect=op.inValueBool("Aspect Ratio",false);
+const inAspectAxis=op.inValueSelect("Stretch Axis",['X','Y'],"X");
+const inAspectPos=op.inValueSlider("Position",0.0);
+const inAspectCrop=op.inValueBool("Crop",false);
+
+
+var trigger=op.outTrigger('trigger');
+
+blendMode.set('normal');
+var cgl=op.patch.cgl;
+var shader=new CGL.Shader(cgl,'drawimage');
+
+
+imageAlpha.onLinkChanged=updateAlphaPorts;
+
+op.setPortGroup("Mask",[imageAlpha,alphaSrc,invAlphaChannel]);
+op.setPortGroup("Aspect Ratio",[inAspect,inAspectPos,inAspectCrop,inAspectAxis]);
+
+
+removeAlphaSrc.onChange=updateRemoveAlphaSrc;
+
+function updateAlphaPorts()
+{
+    if(imageAlpha.isLinked())
+    {
+        removeAlphaSrc.setUiAttribs({greyout:true});
+        alphaSrc.setUiAttribs({greyout:false});
+        invAlphaChannel.setUiAttribs({greyout:false});
+    }
+    else
+    {
+        removeAlphaSrc.setUiAttribs({greyout:false});
+        alphaSrc.setUiAttribs({greyout:true});
+        invAlphaChannel.setUiAttribs({greyout:true});
+    }
+}
+
+op.toWorkPortsNeedToBeLinked(image);
+
+shader.setSource(attachments.drawimage_vert,attachments.drawimage_frag);
+var textureUniform=new CGL.Uniform(shader,'t','tex',0);
+var textureImaghe=new CGL.Uniform(shader,'t','image',1);
+var textureAlpha=new CGL.Uniform(shader,'t','imageAlpha',2);
+
+const uniTexAspect=new CGL.Uniform(shader,'f','aspectTex',1);
+const uniAspectPos=new CGL.Uniform(shader,'f','aspectPos',inAspectPos);
+
+invAlphaChannel.onChange=function()
+{
+    if(invAlphaChannel.get()) shader.define('INVERT_ALPHA');
+        else shader.removeDefine('INVERT_ALPHA');
+};
+
+
+inAspect.onChange=updateAspectRatio;
+inAspectCrop.onChange=updateAspectRatio;
+inAspectAxis.onChange=updateAspectRatio;
+function updateAspectRatio()
+{
+    shader.removeDefine('ASPECT_AXIS_X');
+    shader.removeDefine('ASPECT_AXIS_Y');
+
+    if(inAspect.get())
+    {
+        shader.define('ASPECT_RATIO');
+
+        if(inAspectCrop.get()) shader.define('ASPECT_CROP');
+            else shader.removeDefine('ASPECT_CROP');
+
+        if(inAspectAxis.get()=="X") shader.define('ASPECT_AXIS_X');
+        if(inAspectAxis.get()=="Y") shader.define('ASPECT_AXIS_Y');
+
+
+        inAspectPos.setUiAttribs({greyout:false});
+        inAspectCrop.setUiAttribs({greyout:false});
+        inAspectAxis.setUiAttribs({greyout:false});
+    }
+    else
+    {
+        shader.removeDefine('ASPECT_RATIO');
+        if(inAspectCrop.get()) shader.define('ASPECT_CROP');
+            else shader.removeDefine('ASPECT_CROP');
+
+        if(inAspectAxis.get()=="X") shader.define('ASPECT_AXIS_X');
+        if(inAspectAxis.get()=="Y") shader.define('ASPECT_AXIS_Y');
+
+        inAspectPos.setUiAttribs({greyout:true});
+        inAspectCrop.setUiAttribs({greyout:true});
+        inAspectAxis.setUiAttribs({greyout:true});
+    }
+}
+
+
+
+
+function updateRemoveAlphaSrc()
+{
+    if(removeAlphaSrc.get()) shader.define('REMOVE_ALPHA_SRC');
+        else shader.removeDefine('REMOVE_ALPHA_SRC');
+}
+
+
+alphaSrc.onChange=function()
+{
+    shader.toggleDefine('ALPHA_FROM_LUMINANCE',alphaSrc.get()=='luminance');
+    shader.toggleDefine('ALPHA_FROM_INV_UMINANCE',alphaSrc.get()=='luminance_inv');
+};
+
+alphaSrc.set("alpha channel");
+
+
+{
+    //
+    // texture flip
+    //
+    var flipX=op.inValueBool("flip x");
+    var flipY=op.inValueBool("flip y");
+
+    flipX.onChange=function()
+    {
+        if(flipX.get()) shader.define('TEX_FLIP_X');
+            else shader.removeDefine('TEX_FLIP_X');
+    };
+
+    flipY.onChange=function()
+    {
+        if(flipY.get()) shader.define('TEX_FLIP_Y');
+            else shader.removeDefine('TEX_FLIP_Y');
+    };
+}
+
+{
+    //
+    // texture transform
+    //
+
+    var doTransform=op.inValueBool("Transform");
+
+    var scaleX=op.inValueSlider("Scale X",1);
+    var scaleY=op.inValueSlider("Scale Y",1);
+
+    var posX=op.inValue("Position X",0);
+    var posY=op.inValue("Position Y",0);
+
+    var rotate=op.inValue("Rotation",0);
+
+    var inClipRepeat=op.inValueBool("Clip Repeat",false);
+
+    inClipRepeat.onChange=updateClip;
+    function updateClip()
+    {
+        if(inClipRepeat.get()) shader.define('CLIP_REPEAT');
+            else shader.removeDefine('CLIP_REPEAT');
+    }
+
+
+    var uniScaleX=new CGL.Uniform(shader,'f','scaleX',scaleX);
+    var uniScaleY=new CGL.Uniform(shader,'f','scaleY',scaleY);
+
+    var uniPosX=new CGL.Uniform(shader,'f','posX',posX);
+    var uniPosY=new CGL.Uniform(shader,'f','posY',posY);
+    var uniRotate=new CGL.Uniform(shader,'f','rotate',rotate);
+
+    doTransform.onChange=updateTransformPorts;
+}
+
+function updateTransformPorts()
+{
+    shader.toggleDefine('TEX_TRANSFORM',doTransform.get());
+    if(doTransform.get())
+    {
+        // scaleX.setUiAttribs({hidePort:false});
+        // scaleY.setUiAttribs({hidePort:false});
+        // posX.setUiAttribs({hidePort:false});
+        // posY.setUiAttribs({hidePort:false});
+        // rotate.setUiAttribs({hidePort:false});
+
+        scaleX.setUiAttribs({greyout:false});
+        scaleY.setUiAttribs({greyout:false});
+        posX.setUiAttribs({greyout:false});
+        posY.setUiAttribs({greyout:false});
+        rotate.setUiAttribs({greyout:false});
+    }
+    else
+    {
+        scaleX.setUiAttribs({greyout:true});
+        scaleY.setUiAttribs({greyout:true});
+        posX.setUiAttribs({greyout:true});
+        posY.setUiAttribs({greyout:true});
+        rotate.setUiAttribs({greyout:true});
+
+        // scaleX.setUiAttribs({"hidePort":true});
+        // scaleY.setUiAttribs({"hidePort":true});
+        // posX.setUiAttribs({"hidePort":true});
+        // posY.setUiAttribs({"hidePort":true});
+        // rotate.setUiAttribs({"hidePort":true});
+
+
+    }
+
+    // op.refreshParams();
+}
+
+CGL.TextureEffect.setupBlending(op,shader,blendMode,amount);
+
+var amountUniform=new CGL.Uniform(shader,'f','amount',amount);
+
+imageAlpha.onChange=function()
+{
+    if(imageAlpha.get() && imageAlpha.get().tex)
+    {
+        shader.define('HAS_TEXTUREALPHA');
+    }
+    else
+    {
+        shader.removeDefine('HAS_TEXTUREALPHA');
+    }
+};
+
+function doRender()
+{
+    if(!CGL.TextureEffect.checkOpInEffect(op)) return;
+
+    var tex=image.get();
+    if(tex && tex.tex && amount.get()>0.0)
+    {
+        cgl.pushShader(shader);
+        cgl.currentTextureEffect.bind();
+
+        const imgTex=cgl.currentTextureEffect.getCurrentSourceTexture();
+        cgl.setTexture(0,imgTex.tex );
+
+        uniTexAspect.setValue( 1/(tex.height/tex.width*imgTex.width/imgTex.height));
+
+
+
+        cgl.setTexture(1, tex.tex );
+        // cgl.gl.bindTexture(cgl.gl.TEXTURE_2D, image.get().tex );
+
+        if(imageAlpha.get() && imageAlpha.get().tex)
+        {
+            cgl.setTexture(2, imageAlpha.get().tex );
+            // cgl.gl.bindTexture(cgl.gl.TEXTURE_2D, imageAlpha.get().tex );
+        }
+
+        cgl.currentTextureEffect.finish();
+        cgl.popShader();
+    }
+
+    trigger.trigger();
+}
+
+render.onTriggered=doRender;
+updateTransformPorts();
+updateRemoveAlphaSrc();
+updateAlphaPorts();
+updateAspectRatio();
+
+
+};
+
+Ops.Gl.TextureEffects.DrawImage_v2.prototype = new CABLES.Op();
+CABLES.OPS["f94b5136-61fd-4558-8348-e7c8db5a6348"]={f:Ops.Gl.TextureEffects.DrawImage_v2,objName:"Ops.Gl.TextureEffects.DrawImage_v2"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Math.Divide
+// 
+// **************************************************************
+
+Ops.Math.Divide = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const
+    number1 = op.inValueFloat("number1",1),
+    number2 = op.inValueFloat("number2",2),
+    result = op.outValue("result");
+
+number1.onChange=number2.onChange=exec;
+exec();
+
+function exec()
+{
+    result.set( number1.get() / number2.get() );
+}
+
+
+
+};
+
+Ops.Math.Divide.prototype = new CABLES.Op();
+CABLES.OPS["86fcfd8c-038d-4b91-9820-a08114f6b7eb"]={f:Ops.Math.Divide,objName:"Ops.Math.Divide"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.TextureEffects.LumaKey
+// 
+// **************************************************************
+
+Ops.Gl.TextureEffects.LumaKey = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={lumakey_frag:"IN vec2 texCoord;\n// UNI sampler2D tex;\nUNI float threshhold;\nUNI sampler2D text;\n\nvoid main()\n{\n   vec4 col = texture(text, texCoord );\n\n   float gray = dot(vec3(0.2126,0.7152,0.0722), col.rgb );\n\n   #ifndef INVERT\n       if(gray < threshhold) col.r=col.g=col.b=col.a=0.0;\n       #ifdef BLACKWHITE\n           else col.r=col.g=col.b=col.a=1.0;\n       #endif\n   #endif\n\n   #ifdef INVERT\n       if(gray > threshhold) col.r=col.g=col.b=col.a=0.0;\n       #ifdef BLACKWHITE\n           else col.r=col.g=col.b=col.a=1.0;\n       #endif\n   #endif\n\n   outColor= col;\n}",};
+const
+    render=op.inTrigger('render'),
+    trigger=op.outTrigger('trigger'),
+    inInvert=op.inValueBool("Invert"),
+    inBlackWhite=op.inValueBool("Black White"),
+    threshold=op.inValueSlider("Threshold",0.5);
+
+const cgl=op.patch.cgl;
+const shader=new CGL.Shader(cgl,'lumakey');
+
+shader.setSource(shader.getDefaultVertexShader(),attachments.lumakey_frag);
+const textureUniform=new CGL.Uniform(shader,'t','tex',0);
+const unThreshold=new CGL.Uniform(shader,'f','threshhold',threshold);
+
+inBlackWhite.onChange=function()
+{
+    if(inBlackWhite.get()) shader.define('BLACKWHITE');
+        else shader.removeDefine('BLACKWHITE');
+};
+
+inInvert.onChange=function()
+{
+    if(inInvert.get()) shader.define('INVERT');
+        else shader.removeDefine('INVERT');
+};
+
+render.onTriggered=function()
+{
+    if(!CGL.TextureEffect.checkOpInEffect(op)) return;
+
+    cgl.pushShader(shader);
+
+    cgl.currentTextureEffect.bind();
+    cgl.setTexture(0, cgl.currentTextureEffect.getCurrentSourceTexture().tex );
+
+    cgl.currentTextureEffect.finish();
+
+    cgl.popShader();
+    trigger.trigger();
+};
+
+
+};
+
+Ops.Gl.TextureEffects.LumaKey.prototype = new CABLES.Op();
+CABLES.OPS["2175ae00-989c-4045-a52e-742d5c30bf4e"]={f:Ops.Gl.TextureEffects.LumaKey,objName:"Ops.Gl.TextureEffects.LumaKey"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Ui.Comment
+// 
+// **************************************************************
+
+Ops.Ui.Comment = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+op.inTitle=op.inString("title",' ');
+op.text=op.inTextarea("text");
+
+op.text.set(' ');
+op.name=' ';
+
+op.inTitle.set('new comment');
+
+op.inTitle.onChange=update;
+op.text.onChange=update;
+op.onLoaded=update;
+
+
+update();
+
+function update()
+{
+    if(CABLES.UI)
+    {
+        op.uiAttr(
+            {
+                'comment_title':op.inTitle.get(),
+                'comment_text':op.text.get()
+            });
+
+        op.name=op.inTitle.get();
+
+    }
+}
+
+
+
+
+};
+
+Ops.Ui.Comment.prototype = new CABLES.Op();
+CABLES.OPS["9de0c04f-666b-47cd-9722-a8cf36ab4720"]={f:Ops.Ui.Comment,objName:"Ops.Ui.Comment"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Ui.Comment_v2
+// 
+// **************************************************************
+
+Ops.Ui.Comment_v2 = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const
+    inTitle=op.inString("title",'New comment'),
+    inText=op.inTextarea("text")
+    ;
+
+op.init=
+    inTitle.onChange=
+    inText.onChange=
+    op.onLoaded=update;
+
+update();
+
+function update()
+{
+    if(CABLES.UI)
+    {
+        op.uiAttr(
+            {
+                'comment_title':inTitle.get(),
+                'comment_text':inText.get()
+            });
+
+        op.name=inTitle.get();
+    }
+}
+
+
+
+
+};
+
+Ops.Ui.Comment_v2.prototype = new CABLES.Op();
+CABLES.OPS["93492eeb-bf35-4a62-98f7-d85b0b79bfe5"]={f:Ops.Ui.Comment_v2,objName:"Ops.Ui.Comment_v2"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.TextureEffects.Color
+// 
+// **************************************************************
+
+Ops.Gl.TextureEffects.Color = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={color_frag:"IN vec2 texCoord;\nUNI sampler2D tex;\nUNI float r;\nUNI float g;\nUNI float b;\nUNI float amount;\n\n#ifdef MASK\n    UNI sampler2D mask;\n#endif\n\n{{CGL.BLENDMODES}}\n\nvoid main()\n{\n    vec4 col=vec4(r,g,b,1.0);\n    vec4 base=texture(tex,texCoord);\n\n    float am=amount;\n    #ifdef MASK\n        float msk=texture(mask,texCoord).r;\n        #ifdef INVERTMASK\n            msk=1.0-msk;\n        #endif\n        am*=1.0-msk;\n    #endif\n\n    outColor= cgl_blend(base,col,am);\n    outColor.a*=base.a;\n\n}\n",};
+const
+    render = op.inTrigger("render"),
+    blendMode = CGL.TextureEffect.AddBlendSelect(op, "Blend Mode", "normal"),
+    amount = op.inValueSlider("Amount", 1),
+    inMask = op.inTexture("Mask"),
+    inMaskInvert = op.inValueBool("Mask Invert"),
+    r = op.inValueSlider("r", Math.random()),
+    g = op.inValueSlider("g", Math.random()),
+    b = op.inValueSlider("b", Math.random()),
+    trigger = op.outTrigger("trigger");
+
+r.setUiAttribs({ "colorPick": true });
+
+op.setPortGroup("Color", [r, g, b]);
+
+const TEX_SLOT = 0;
+const cgl = op.patch.cgl;
+const shader = new CGL.Shader(cgl, "textureeffect color");
+
+const srcFrag = attachments.color_frag || "";
+
+shader.setSource(shader.getDefaultVertexShader(), srcFrag);
+
+const
+    textureUniform = new CGL.Uniform(shader, "t", "tex", TEX_SLOT),
+    makstextureUniform = new CGL.Uniform(shader, "t", "mask", 1),
+    uniformR = new CGL.Uniform(shader, "f", "r", r),
+    uniformG = new CGL.Uniform(shader, "f", "g", g),
+    uniformB = new CGL.Uniform(shader, "f", "b", b),
+    uniformAmount = new CGL.Uniform(shader, "f", "amount", amount);
+
+inMask.onChange = function ()
+{
+    if (inMask.get())shader.define("MASK");
+    else shader.removeDefine("MASK");
+};
+
+inMaskInvert.onChange = function ()
+{
+    if (inMaskInvert.get())shader.define("INVERTMASK");
+    else shader.removeDefine("INVERTMASK");
+};
+
+CGL.TextureEffect.setupBlending(op, shader, blendMode, amount);
+
+render.onTriggered = function ()
+{
+    if (!CGL.TextureEffect.checkOpInEffect(op)) return;
+
+    cgl.pushShader(shader);
+    cgl.currentTextureEffect.bind();
+
+    cgl.setTexture(TEX_SLOT, cgl.currentTextureEffect.getCurrentSourceTexture().tex);
+    if (inMask.get()) cgl.setTexture(1, inMask.get().tex);
+
+    cgl.currentTextureEffect.finish();
+    cgl.popShader();
+
+    trigger.trigger();
+};
+
+
+};
+
+Ops.Gl.TextureEffects.Color.prototype = new CABLES.Op();
+CABLES.OPS["c0acfc80-16f9-4f17-978d-bad650f3ed1c"]={f:Ops.Gl.TextureEffects.Color,objName:"Ops.Gl.TextureEffects.Color"};
 
 
 window.addEventListener('load', function(event) {

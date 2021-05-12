@@ -2,7 +2,6 @@
 $(function(){
     $( "body" ).append( "<div id='custom'></div>" );
     $("#custom").load("custom/custom.html"); 
-    // CABLES.patch.setVariable("url", "");
   });
 
 function choose_song(value) {
