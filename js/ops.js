@@ -10,6 +10,7 @@ Ops.Html=Ops.Html || {};
 Ops.Math=Ops.Math || {};
 Ops.Vars=Ops.Vars || {};
 Ops.Patch=Ops.Patch || {};
+Ops.String=Ops.String || {};
 Ops.Boolean=Ops.Boolean || {};
 Ops.Devices=Ops.Devices || {};
 Ops.Trigger=Ops.Trigger || {};
@@ -4341,6 +4342,65 @@ CABLES.OPS["c26e6ce0-8047-44bb-9bc8-5a4f911ed8ad"]={f:Ops.Boolean.And,objName:"O
 
 // **************************************************************
 // 
+// Ops.Vars.VarSetString_v2
+// 
+// **************************************************************
+
+Ops.Vars.VarSetString_v2 = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const val=op.inString("Value","New String");
+op.varName=op.inDropDown("Variable",[],"",true);
+
+new CABLES.VarSetOpWrapper(op,"string",val,op.varName);
+
+
+
+
+};
+
+Ops.Vars.VarSetString_v2.prototype = new CABLES.Op();
+CABLES.OPS["0b4d9229-8024-4a30-9cc0-f6653942c2e4"]={f:Ops.Vars.VarSetString_v2,objName:"Ops.Vars.VarSetString_v2"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.String.StringEquals
+// 
+// **************************************************************
+
+Ops.String.StringEquals = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const
+    str1=op.inString("String 1"),
+    str2=op.inString("String 2"),
+    result=op.outValueBool("Result");
+
+
+str1.onChange=
+str2.onChange=
+    function()
+    {
+        result.set(str1.get()==str2.get());
+    };
+
+};
+
+Ops.String.StringEquals.prototype = new CABLES.Op();
+CABLES.OPS["ef15195a-760b-4ac5-9630-322b0ba7b722"]={f:Ops.String.StringEquals,objName:"Ops.String.StringEquals"};
+
+
+
+
+// **************************************************************
+// 
 // Ops.Boolean.Not
 // 
 // **************************************************************
@@ -4366,33 +4426,6 @@ bool.onChange = function ()
 
 Ops.Boolean.Not.prototype = new CABLES.Op();
 CABLES.OPS["6d123c9f-7485-4fd9-a5c2-76e59dcbeb34"]={f:Ops.Boolean.Not,objName:"Ops.Boolean.Not"};
-
-
-
-
-// **************************************************************
-// 
-// Ops.Vars.VarSetString_v2
-// 
-// **************************************************************
-
-Ops.Vars.VarSetString_v2 = function()
-{
-CABLES.Op.apply(this,arguments);
-const op=this;
-const attachments={};
-const val=op.inString("Value","New String");
-op.varName=op.inDropDown("Variable",[],"",true);
-
-new CABLES.VarSetOpWrapper(op,"string",val,op.varName);
-
-
-
-
-};
-
-Ops.Vars.VarSetString_v2.prototype = new CABLES.Op();
-CABLES.OPS["0b4d9229-8024-4a30-9cc0-f6653942c2e4"]={f:Ops.Vars.VarSetString_v2,objName:"Ops.Vars.VarSetString_v2"};
 
 
 window.addEventListener('load', function(event) {

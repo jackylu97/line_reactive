@@ -1,0 +1,24 @@
+<style>
+    .element {
+        color: white;
+        display: block;
+        position: absolute;
+        top: 50%;  
+        left: 50%; 
+        transform: translate(-50%, -50%); 
+    }
+
+    .hide {
+        display:none;
+    }
+</style>
+
+<div id = "selector" class="element">
+    <p>Please choose a song:</p>
+    <select onchange="choose_song(this.value)">
+        <option value="10">---</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3?</option>
+    </select>
+</div>
