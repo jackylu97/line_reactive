@@ -35,6 +35,19 @@
             user-select: none;
         }
 
+        .element {
+            color: white;
+            display: block;
+            position: absolute;
+            top: 50%;  
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+        }
+
+        .hide {
+            display:none;
+        }
+
         footer {
             position: absolute;
             bottom: 0;
@@ -58,6 +71,15 @@
 
 <body>
     <canvas id="glcanvas" width="100vw" height="100vh" tabindex="1"></canvas>
+    <div id = "selector" class="element">
+        <p>Please choose a song:</p>
+        <select onchange="choose_song(this.value)">
+            <option value="10">---</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3?</option>
+        </select>
+    </div>
     <footer>
         made with <a href='https://cables.gl'>cables</a>
         <!-- we would greatly appreciate if you link cables somewhere on your site! and tell us your website! thanks <3 :) -->
@@ -69,19 +91,26 @@
 <script type="text/javascript" src="js/ops.js"></script>
 
     <script type="text/javascript"  src="js/cgl_shadermodifier.js"></script>
+<script type="text/javascript"  src="js/vargetset.js"></script>
 
 
     <script>
 
+        function choose_song(value) {
+            CABLES.patch.setVariable("url", "assets/test"+ String(value) + ".mp3");
+            document.getElementById("selector").classList.add("hide");
+        }
         // disable rubberband effect on mobile devices
         document.getElementById('glcanvas').addEventListener('touchmove', (e)=>{ e.preventDefault(); }, false);
 
 
         function patchInitialized(patch) {
+            
             // You can now access the patch object (patch), register variable watchers and so on
         }
 
         function patchFinishedLoading(patch) {
+            CABLES.patch.setVariable("url","");
             // The patch is ready now, all assets have been loaded
         }
 

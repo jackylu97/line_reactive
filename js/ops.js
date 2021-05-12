@@ -8,13 +8,15 @@ Ops.Gl=Ops.Gl || {};
 Ops.Anim=Ops.Anim || {};
 Ops.Html=Ops.Html || {};
 Ops.Math=Ops.Math || {};
+Ops.Vars=Ops.Vars || {};
 Ops.Patch=Ops.Patch || {};
+Ops.Boolean=Ops.Boolean || {};
 Ops.Devices=Ops.Devices || {};
+Ops.Trigger=Ops.Trigger || {};
 Ops.WebAudio=Ops.WebAudio || {};
 Ops.Gl.Matrix=Ops.Gl.Matrix || {};
 Ops.Gl.Meshes=Ops.Gl.Meshes || {};
 Ops.Gl.Shader=Ops.Gl.Shader || {};
-Ops.Math.Compare=Ops.Math.Compare || {};
 Ops.Devices.Mouse=Ops.Devices.Mouse || {};
 Ops.Gl.ShaderEffects=Ops.Gl.ShaderEffects || {};
 Ops.Gl.TextureEffects=Ops.Gl.TextureEffects || {};
@@ -4250,71 +4252,147 @@ CABLES.OPS["e102834c-6dcf-459c-9e22-44ebccfc0d3b"]={f:Ops.Html.LoadingIndicator,
 
 // **************************************************************
 // 
-// Ops.Math.Subtract
+// Ops.Vars.VarGetString
 // 
 // **************************************************************
 
-Ops.Math.Subtract = function()
+Ops.Vars.VarGetString = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+var val=op.outString("Value");
+op.varName=op.inValueSelect("Variable",[],"",true);
+
+new CABLES.VarGetOpWrapper(op,"string",op.varName,val);
+
+
+};
+
+Ops.Vars.VarGetString.prototype = new CABLES.Op();
+CABLES.OPS["3ad08cfc-bce6-4175-9746-fef2817a3b12"]={f:Ops.Vars.VarGetString,objName:"Ops.Vars.VarGetString"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Trigger.GateTrigger
+// 
+// **************************************************************
+
+Ops.Trigger.GateTrigger = function()
 {
 CABLES.Op.apply(this,arguments);
 const op=this;
 const attachments={};
 const
-    number1=op.inValue("number1",1),
-    number2=op.inValue("number2",1),
-    result=op.outValue("result");
+    exe = op.inTrigger('Execute'),
+    passThrough = op.inValueBool('Pass Through',true),
+    triggerOut = op.outTrigger('Trigger out');
 
-number1.onChange=exec;
-number2.onChange=exec;
-exec();
-
-function exec()
+exe.onTriggered = function()
 {
-    var v=number1.get()-number2.get();
-    if(!isNaN(v)) result.set( v );
+    if(passThrough.get())
+        triggerOut.trigger();
 }
-
 
 
 };
 
-Ops.Math.Subtract.prototype = new CABLES.Op();
-CABLES.OPS["a4ffe852-d200-4b96-9347-68feb01122ca"]={f:Ops.Math.Subtract,objName:"Ops.Math.Subtract"};
+Ops.Trigger.GateTrigger.prototype = new CABLES.Op();
+CABLES.OPS["65e8b8a2-ba13-485f-883a-2bcf377989da"]={f:Ops.Trigger.GateTrigger,objName:"Ops.Trigger.GateTrigger"};
 
 
 
 
 // **************************************************************
 // 
-// Ops.Math.Compare.Equals
+// Ops.Boolean.And
 // 
 // **************************************************************
 
-Ops.Math.Compare.Equals = function()
+Ops.Boolean.And = function()
 {
 CABLES.Op.apply(this,arguments);
 const op=this;
 const attachments={};
-const number1 = op.inValue("number1",1);
-const number2 = op.inValue("number2",1);
-const result = op.outValue("result");
+const
+    bool0 = op.inValueBool("bool 1"),
+    bool1 = op.inValueBool("bool 2"),
+    result = op.outValueBool("result");
 
-
-number1.onChange=exec;
-number2.onChange=exec;
-exec();
+bool0.onChange =
+bool1.onChange = exec;
 
 function exec()
 {
-    result.set( number1.get() == number2.get() );
+    result.set(bool1.get() && bool0.get());
 }
+
+
+};
+
+Ops.Boolean.And.prototype = new CABLES.Op();
+CABLES.OPS["c26e6ce0-8047-44bb-9bc8-5a4f911ed8ad"]={f:Ops.Boolean.And,objName:"Ops.Boolean.And"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Boolean.Not
+// 
+// **************************************************************
+
+Ops.Boolean.Not = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const bool = op.inValueBool("Boolean");
+const outbool = op.outValue("Result");
+
+bool.changeAlways = true;
+
+bool.onChange = function ()
+{
+    // outbool.set( ! (true==bool.get()) );
+    outbool.set(!bool.get());
+};
+
+
+};
+
+Ops.Boolean.Not.prototype = new CABLES.Op();
+CABLES.OPS["6d123c9f-7485-4fd9-a5c2-76e59dcbeb34"]={f:Ops.Boolean.Not,objName:"Ops.Boolean.Not"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Vars.VarSetString_v2
+// 
+// **************************************************************
+
+Ops.Vars.VarSetString_v2 = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const val=op.inString("Value","New String");
+op.varName=op.inDropDown("Variable",[],"",true);
+
+new CABLES.VarSetOpWrapper(op,"string",val,op.varName);
+
 
 
 
 };
 
-Ops.Math.Compare.Equals.prototype = new CABLES.Op();
-CABLES.OPS["4dd3cc55-eebc-4187-9d4e-2e053a956fab"]={f:Ops.Math.Compare.Equals,objName:"Ops.Math.Compare.Equals"};
+Ops.Vars.VarSetString_v2.prototype = new CABLES.Op();
+CABLES.OPS["0b4d9229-8024-4a30-9cc0-f6653942c2e4"]={f:Ops.Vars.VarSetString_v2,objName:"Ops.Vars.VarSetString_v2"};
 
 
 window.addEventListener('load', function(event) {
